@@ -14,10 +14,12 @@ class FrameDataset(Dataset):
         self.runs = list(runs)
         self.cfg = cfg
         self.stats = stats
+        k = cfg.frame_stride if cfg.frame_stride > 0 else 1
         if stats is not None:
-            stats._dt = cfg.dt
+            stats._dt = cfg.dt*k
         self.train = train
-        self.index = [(ri, t) for ri, run in enumerate(self.runs) for t in range(1, run.n_frames - 1)]
+        k = cfg.frame_stride if cfg.frame_stride > 0 else 1
+        self.index = [(ri, t) for ri, run in enumerate(self.runs) for t in range(k, run.n_frames - k)]
         self.rng = np.random.default_rng(seed)
 
     def __len__(self):
@@ -28,7 +30,9 @@ class FrameDataset(Dataset):
         """Raw numpy sample. Kept separate from __getitem__ so stats and rollout can reuse it."""
         cfg = self.cfg
         rng = rng or self.rng
-        f_prev, f_t, f_next = run.frame(t - 1), run.frame(t), run.frame(t + 1)
+        k = cfg.frame_stride if cfg.frame_stride > 0 else 1
+        dt = cfg.dt * k
+        f_prev, f_t, f_next = run.frame(t - k), run.frame(t), run.frame(t + k)
         pos_prev, pos_t, pos_next = f_prev[:, POS].copy(), f_t[:, POS].copy(), f_next[:, POS]
         state_t, state_next = f_t[:, STATE].copy(), f_next[:, STATE]
         types = run.types
@@ -50,13 +54,13 @@ class FrameDataset(Dataset):
 
         recv = None if cfg.edges_to_static else soil
         s, r = radius_edges(pos_t, cfg.radius, receiver_mask=recv)
-        vel = (pos_t - pos_prev) / cfg.dt
+        vel = (pos_t - pos_prev) / dt
         return {
-            "x": node_features(pos_t, pos_prev, state_t, types, run.phi_deg, run.cohesion, cfg.dt),
+            "x": node_features(pos_t, pos_prev, state_t, types, run.phi_deg, run.cohesion, dt),
             "e": edge_features(pos_t, vel, s, r),
             "senders": s,
             "receivers": r,
-            "y": targets(pos_next, pos_t, pos_prev, state_next, state_t, cfg.dt),
+            "y": targets(pos_next, pos_t, pos_prev, state_next, state_t, dt),
             "mask": loss_mask,
         }
 
@@ -109,10 +113,10 @@ def collate(items):
     return {k: torch.cat(v) for k, v in out.items()}
 
 
-def sample_frames(runs, n, rng):
+def sample_frames(runs, n, rng, stride=1):
     """n random (run, frame) pairs, frames uniformly over the middle of each run."""
     out = []
     for _ in range(n):
         run = runs[rng.integers(len(runs))]
-        out.append((run, int(rng.integers(1, run.n_frames - 1))))
+        out.append((run, int(rng.integers(stride, run.n_frames - stride))))
     return out

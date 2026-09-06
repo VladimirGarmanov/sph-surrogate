@@ -47,30 +47,32 @@ def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
-    """Start from frames 0 and 1, predict soil for frames 2..T-1.
+    """Start from frames k and k+1, predict soil for frames k+1..T-k.
     Plate and wall positions/states come from the data at every step (their motion is known)."""
+    k = cfg.frame_stride
+    dt = cfg.dt * k
     T = run.n_frames if n_steps is None else min(run.n_frames, n_steps + 2)
     types = run.types
     soil = types == SOIL
     recv = None if cfg.edges_to_static else soil
 
-    f0, f1 = run.frame(0), run.frame(1)
+    f0, f1 = run.frame(0), run.frame(k)
     pos_prev, pos_t = f0[:, POS].copy(), f1[:, POS].copy()
     state = f1[:, STATE].copy()
 
     pred_pos = np.empty((T, run.n_soil, 3), np.float32)
     pred_state = np.empty((T, run.n_soil, state.shape[1]), np.float32)
-    pred_pos[0], pred_pos[1] = pos_prev[soil], pos_t[soil]
-    pred_state[0], pred_state[1] = f0[soil, STATE], state[soil]
+    pred_pos[0], pred_pos[k] = pos_prev[soil], pos_t[soil]
+    pred_state[0], pred_state[k] = f0[soil, STATE], state[soil]
     rmse = np.zeros(T, np.float32)
     step_wall = []
 
     with torch.inference_mode():
-        for t in range(1, T - 1):
+        for t in range(k, T - k, k):
             tic = time.perf_counter()
             s, r = radius_edges(pos_t, cfg.radius, receiver_mask=recv)
-            vel = (pos_t - pos_prev) / cfg.dt
-            x = stats.norm("node", node_features(pos_t, pos_prev, state, types, run.phi_deg, run.cohesion, cfg.dt))
+            vel = (pos_t - pos_prev) / dt
+            x = stats.norm("node", node_features(pos_t, pos_prev, state, types, run.phi_deg, run.cohesion, dt))
             e = stats.norm("edge", edge_features(pos_t, vel, s, r))
             out = model(torch.from_numpy(x).to(device), torch.from_numpy(e).to(device),
                         torch.from_numpy(s).to(device), torch.from_numpy(r).to(device))
@@ -78,30 +80,32 @@ def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
             acc, rate = y[:, :3], y[:, 3:]
 
             pos_next = pos_t.copy()
-            pos_next[soil] = 2 * pos_t[soil] - pos_prev[soil] + acc[soil] * cfg.dt ** 2
-            state[soil] += rate[soil] * cfg.dt
+            pos_next[soil] = 2 * pos_t[soil] - pos_prev[soil] + acc[soil] * dt ** 2
+            state[soil] += rate[soil] * dt
 
             # static markers: take the next frame from the data
-            f_next = run.frame(t + 1)
+            f_next = run.frame(t + k)
             pos_next[~soil] = f_next[~soil, POS]
             state[~soil] = f_next[~soil, STATE]
             if device.type == "cuda":
                 torch.cuda.synchronize()
             step_wall.append(time.perf_counter() - tic)
 
-            pred_pos[t + 1], pred_state[t + 1] = pos_next[soil], state[soil]
-            rmse[t + 1] = np.sqrt(((pos_next[soil] - f_next[soil, POS]) ** 2).sum(1).mean())
+            pred_pos[t + k], pred_state[t + k] = pos_next[soil], state[soil]
+            rmse[t + k] = np.sqrt(((pos_next[soil] - f_next[soil, POS]) ** 2).sum(1).mean())
             if verbose and (t % 10 == 0 or t == T - 2):
-                print(f"  step {t:3d}/{T - 2}  rmse={rmse[t + 1] * 1e3:.3f} mm  {step_wall[-1] * 1e3:.0f} ms")
+                print(f"  step {t:3d}/{T - 2}  rmse={rmse[t + k] * 1e3:.3f} mm  {step_wall[-1] * 1e3:.0f} ms")
             pos_prev, pos_t = pos_t, pos_next
 
-    return {"pos": pred_pos, "state": pred_state, "rmse": rmse, "step_wall": np.array(step_wall)}
+    frames = np.arange(0, T - k + 1, k)          # frames actually filled: 0, k, 2k, ...
+    return {"pos": pred_pos, "state": pred_state, "rmse": rmse, "frames": frames,
+            "step_wall": np.array(step_wall)}
 
 
 def zone_report(run, pred, cfg, plate_radius=0.15):
     """Where is the error: under the plate or in soil that should be at rest?
     Prints RMSE and the mean error vector (a drift shows up as a non-zero mean)."""
-    T = pred["pos"].shape[0] - 1
+    T = int(pred["frames"][-1])
     gt = np.asarray(run.soil[T][:, POS])
     err = pred["pos"][T] - gt
     plate0 = np.asarray(run.plate[0][:, POS])
@@ -121,14 +125,14 @@ def zone_report(run, pred, cfg, plate_radius=0.15):
 
 def pressure_curves(run, pred, cfg):
     """(t, p_pred, p_gt_estimate, p_reference) per frame."""
-    T = pred["pos"].shape[0]
-    t = np.arange(T) * cfg.dt
-    p_pred, p_gt = np.full(T, np.nan), np.full(T, np.nan)
-    for k in range(T):
+    frames = pred["frames"]
+    t = frames * cfg.dt
+    p_pred, p_gt = np.full(len(frames), np.nan), np.full(len(frames), np.nan)
+    for i, k in enumerate(frames):
         plate_pos = np.asarray(run.plate[k][:, POS])
-        p_pred[k] = plate_pressure(pred["pos"][k], pred["state"][k][:, P33 - STATE.start], plate_pos, cfg.spacing)
+        p_pred[i] = plate_pressure(pred["pos"][k], pred["state"][k][:, P33 - STATE.start], plate_pos, cfg.spacing)
         gt = np.asarray(run.soil[k])
-        p_gt[k] = plate_pressure(gt[:, POS], gt[:, P33], plate_pos, cfg.spacing)
+        p_gt[i] = plate_pressure(gt[:, POS], gt[:, P33], plate_pos, cfg.spacing)
     p_ref = None
     if run.reference is not None and {"time_s", "pressure_Pa"} <= set(run.reference.columns):
         ref = run.reference
@@ -169,10 +173,12 @@ def main():
     pred = rollout(model, cfg, stats, run, device, n_steps=args.steps)
 
     # -- divergence ---------------------------------------------------------
-    over = np.flatnonzero(pred["rmse"] > thr)
-    stable = int(over[0]) - 1 if len(over) else len(pred["rmse"]) - 1
-    print(f"\nstable steps (rmse < {thr * 1e3:.1f} mm): {stable} of {len(pred['rmse']) - 1}")
-    print(f"final rmse: {pred['rmse'][-1] * 1e3:.2f} mm")
+    frames = pred["frames"]
+    rmse = pred["rmse"][frames]                # one value per network step
+    over = np.flatnonzero(rmse > thr)
+    stable = int(over[0]) - 1 if len(over) else len(rmse) - 1
+    print(f"\nstable steps (rmse < {thr * 1e3:.1f} mm): {stable} of {len(rmse) - 1}  (stride {cfg.frame_stride}, {len(rmse) - 1} steps cover frames 0..{frames[-1]})")
+    print(f"final rmse: {rmse[-1] * 1e3:.2f} mm")
     zone_report(run, pred, cfg)
 
     # -- plate pressure -----------------------------------------------------
@@ -184,7 +190,7 @@ def main():
 
     # -- speed --------------------------------------------------------------
     wall = pred["step_wall"][1:].mean()        # skip warm-up step
-    net_cost = wall / cfg.dt
+    net_cost = wall / (cfg.dt * cfg.frame_stride)
     print(f"\nnet: {wall * 1e3:.0f} ms per step incl. graph build  ->  {net_cost:.1f} wall-s per model-s")
     solver = solver_wall_seconds(run.dir, run.tag)
     if solver is not None:
@@ -201,7 +207,7 @@ def main():
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(1, 2, figsize=(11, 4))
-        ax[0].plot(t[1:] , pred["rmse"][1:] * 1e3)
+        ax[0].plot(t[1:], rmse[1:] * 1e3)
         ax[0].axhline(thr * 1e3, ls="--", c="r")
         ax[0].set(xlabel="t [s]", ylabel="position RMSE [mm]", title=f"{run.tag}: divergence")
         ax[1].plot(t, p_gt / 1e3, label="particle estimate, solver frames")

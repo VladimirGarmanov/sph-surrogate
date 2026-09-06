@@ -11,6 +11,7 @@ class Config:
     spacing: float = 0.02       # SPH particle spacing [m]
     radius: float = 0.04        # neighbour radius [m]; tune with scripts/neighbors.py
     holdout: str = "phi30_c500,phi40_c2000,phi25_c5000,phi45_c0"  # never trained on
+    frame_stride: int = 1  # use every k-th frame; effective dt = k * dt
 
     # ---- graph ------------------------------------------------------------
     # Edges whose receiver is a wall/plate marker are useless (we never predict

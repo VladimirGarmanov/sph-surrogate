@@ -83,7 +83,7 @@ def main():
         t0 = time.time()
         raw = FrameDataset(train_runs, cfg, stats=None, train=False)
         stats = Stats.compute(raw.build(run, t, noise=False, crop=cfg.crop_half > 0, rng=rng)
-                              for run, t in sample_frames(train_runs, cfg.stats_frames, rng))
+                              for run, t in sample_frames(train_runs, cfg.stats_frames, rng, cfg.frame_stride))
         stats.save(stats_path)
         print(f"stats from {cfg.stats_frames} frames in {time.time() - t0:.0f}s -> {stats_path}")
 
