@@ -98,6 +98,27 @@ def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
     return {"pos": pred_pos, "state": pred_state, "rmse": rmse, "step_wall": np.array(step_wall)}
 
 
+def zone_report(run, pred, cfg, plate_radius=0.15):
+    """Where is the error: under the plate or in soil that should be at rest?
+    Prints RMSE and the mean error vector (a drift shows up as a non-zero mean)."""
+    T = pred["pos"].shape[0] - 1
+    gt = np.asarray(run.soil[T][:, POS])
+    err = pred["pos"][T] - gt
+    plate0 = np.asarray(run.plate[0][:, POS])
+    center, z_top = plate0[:, :2].mean(0), plate0[:, 2].min()
+    lateral = np.linalg.norm(gt[:, :2] - center, axis=1)
+    under = (lateral <= plate_radius + 2 * cfg.spacing) & (gt[:, 2] >= z_top - 0.15)
+    moved = np.linalg.norm(gt - np.asarray(run.soil[0][:, POS]), axis=1) > cfg.spacing / 4
+    print(f"\nerror split at the last frame (n = {len(gt)}):")
+    for name, m in (("under plate", under), ("rest of soil", ~under), ("moved > spacing/4 in truth", moved), ("static in truth", ~moved)):
+        if not m.any():
+            continue
+        e = err[m]
+        rmse = np.sqrt((e ** 2).sum(1).mean()) * 1e3
+        mean = e.mean(0) * 1e3
+        print(f"  {name:28s} n={m.sum():6d}  rmse={rmse:6.2f} mm  mean err=({mean[0]:+.2f}, {mean[1]:+.2f}, {mean[2]:+.2f}) mm")
+
+
 def pressure_curves(run, pred, cfg):
     """(t, p_pred, p_gt_estimate, p_reference) per frame."""
     T = pred["pos"].shape[0]
@@ -152,6 +173,7 @@ def main():
     stable = int(over[0]) - 1 if len(over) else len(pred["rmse"]) - 1
     print(f"\nstable steps (rmse < {thr * 1e3:.1f} mm): {stable} of {len(pred['rmse']) - 1}")
     print(f"final rmse: {pred['rmse'][-1] * 1e3:.2f} mm")
+    zone_report(run, pred, cfg)
 
     # -- plate pressure -----------------------------------------------------
     t, p_pred, p_gt, p_ref = pressure_curves(run, pred, cfg)
