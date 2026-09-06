@@ -55,11 +55,20 @@ class FrameDataset(Dataset):
         recv = None if cfg.edges_to_static else soil
         s, r = radius_edges(pos_t, cfg.radius, receiver_mask=recv)
         vel = (pos_t - pos_prev) / dt
+        # Raw (unnormalized) direction for the Newton's-third-law correction in model.py.
+        # Must come from raw positions, not the normalized edge features: dividing x/y/z by
+        # their (unequal) per-axis std would distort the direction, not just its scale.
+        rel_raw = pos_t[s] - pos_t[r]
+        dist_raw = np.linalg.norm(rel_raw, axis=1, keepdims=True)
+        unit = (rel_raw / np.clip(dist_raw, 1e-8, None)).astype(np.float32)
+        soil_edge = (soil[s] & soil[r])
         return {
             "x": node_features(pos_t, pos_prev, state_t, types, run.phi_deg, run.cohesion, dt),
             "e": edge_features(pos_t, vel, s, r),
             "senders": s,
             "receivers": r,
+            "unit": unit,
+            "soil_edge": soil_edge,
             "y": targets(pos_next, pos_t, pos_prev, state_next, state_t, dt),
             "mask": loss_mask,
         }
@@ -97,6 +106,8 @@ def to_tensors(smp, stats=None):
         "e": torch.from_numpy(np.ascontiguousarray(e, np.float32)),
         "senders": torch.from_numpy(smp["senders"]),
         "receivers": torch.from_numpy(smp["receivers"]),
+        "unit": torch.from_numpy(np.ascontiguousarray(smp["unit"], np.float32)),
+        "soil_edge": torch.from_numpy(np.asarray(smp["soil_edge"], bool)),
         "y": torch.from_numpy(np.ascontiguousarray(y, np.float32)),
         "mask": torch.from_numpy(np.asarray(smp["mask"], bool)),
     }
