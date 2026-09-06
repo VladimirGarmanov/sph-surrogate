@@ -45,7 +45,7 @@ def evaluate(model, samples, device):
     with torch.no_grad():
         for b in samples:
             b = {k: v.to(device) for k, v in b.items()}
-            pred = model(b["x"], b["e"], b["senders"], b["receivers"], b["unit"], b["soil_edge"])[b["mask"]]
+            pred = model(b["x"], b["e"], b["senders"], b["receivers"])[b["mask"]]
             for k, v in group_losses(pred, b["y"][b["mask"]]).items():
                 tot[k] += v
             n += 1
@@ -123,9 +123,9 @@ def main():
             if step >= cfg.steps:
                 break
             b = {k: v.to(device, non_blocking=True) for k, v in b.items()}
-            pred = model(b["x"], b["e"], b["senders"], b["receivers"], b["unit"], b["soil_edge"])[b["mask"]]
+            pred = model(b["x"], b["e"], b["senders"], b["receivers"])[b["mask"]]
             y = b["y"][b["mask"]]
-            loss = ((pred - y) ** 2).mean()
+            loss = torch.nn.functional.huber_loss(pred, y, delta=1.0)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)

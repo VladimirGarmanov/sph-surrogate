@@ -25,15 +25,7 @@ def load_checkpoint(path, device):
     cfg = Config.from_dict(ck["config"])
     stats = Stats.load(ck["stats"])
     model = GNS(cfg.hidden, cfg.layers).to(device)
-    missing, unexpected = model.load_state_dict(ck["model"], strict=False)
-    if unexpected:
-        raise RuntimeError(f"checkpoint has params the current model doesn't: {unexpected}")
-    if missing:
-        if not all(m.startswith("force_mlp.") for m in missing):
-            raise RuntimeError(f"checkpoint is missing unexpected params: {missing}")
-        # an older checkpoint (pre Newton's-third-law branch): force_mlp stays at its zero-init,
-        # i.e. the correction is a no-op, which matches the old architecture exactly.
-        print(f"note: checkpoint predates the Newton's-third-law branch ({len(missing)} params left at zero-init)")
+    model.load_state_dict(ck["model"])
     model.eval()
     return model, cfg, stats
 
@@ -82,12 +74,8 @@ def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
             vel = (pos_t - pos_prev) / dt
             x = stats.norm("node", node_features(pos_t, pos_prev, state, types, run.phi_deg, run.cohesion, dt))
             e = stats.norm("edge", edge_features(pos_t, vel, s, r))
-            rel_raw = pos_t[s] - pos_t[r]
-            unit = (rel_raw / np.clip(np.linalg.norm(rel_raw, axis=1, keepdims=True), 1e-8, None)).astype(np.float32)
-            soil_edge = soil[s] & soil[r]
             out = model(torch.from_numpy(x).to(device), torch.from_numpy(e).to(device),
-                        torch.from_numpy(s).to(device), torch.from_numpy(r).to(device),
-                        torch.from_numpy(unit).to(device), torch.from_numpy(soil_edge).to(device))
+                        torch.from_numpy(s).to(device), torch.from_numpy(r).to(device))
             y = stats.denorm("target", out.cpu().numpy())
             acc, rate = y[:, :3], y[:, 3:]
 
