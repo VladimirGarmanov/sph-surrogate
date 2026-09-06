@@ -125,7 +125,7 @@ def main():
             b = {k: v.to(device, non_blocking=True) for k, v in b.items()}
             pred = model(b["x"], b["e"], b["senders"], b["receivers"])[b["mask"]]
             y = b["y"][b["mask"]]
-            loss = torch.nn.functional.huber_loss(pred, y, delta=1.0)
+            loss = ((pred - y) ** 2).mean()
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
