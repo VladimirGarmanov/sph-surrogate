@@ -1,0 +1,16 @@
+# Keys — never commit
+*.pem
+
+# Data and training outputs
+data/
+*.npy
+checkpoints/
+runs/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
