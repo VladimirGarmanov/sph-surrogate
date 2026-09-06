@@ -104,7 +104,9 @@ def main():
         model.load_state_dict(ck["model"])
         opt.load_state_dict(ck["opt"])
         step = ck["step"]
-        print(f"resumed from {args.resume} at step {step}")
+        sched.last_epoch = step - 1   # LambdaLR has no state_dict entry for this; must set manually
+        sched.step()
+        print(f"resumed from {args.resume} at step {step}, lr={sched.get_last_lr()[0]:.1e}")
     print(f"params: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 
     def save(name="model.pt"):
