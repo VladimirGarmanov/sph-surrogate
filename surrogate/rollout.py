@@ -31,26 +31,35 @@ def load_checkpoint(path, device):
 
 
 def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
-    """Mean normal stress of soil in a slab right under the plate face.
+    """Mean normal stress of soil in a thin layer right under the plate face.
 
-    radius and slab thickness were picked by scripts/calibrate_pressure.py: swept
-    against pressure_sinkage.csv on ground-truth frames only (no network), across 6
-    runs. A thicker slab (6x spacing instead of 2x) cut the estimator's own error
-    against the reference from ~19-21% to ~8% -- that gap had been misread as
-    network inaccuracy, when it was mostly the formula.
+    This is the original, untuned formula (radius = plate_radius, slab = 2x
+    spacing, plain mean). Two attempts to improve it are recorded here because
+    both backfired, and the reason is the actual finding worth keeping:
 
-    The sweep's single best combination (radius = plate_radius + 2*spacing, plus
-    weighting each particle's stress by a fixed representative area instead of a
-    plain mean) scored even lower on ground truth (4%), but was rejected: it sums
-    stress and divides by a FIXED plate area regardless of how many particles the
-    disk actually catches, so when the network's own rollout pushes particles out
-    of position under the plate (exactly where its error is largest -- see
-    zone_report's "under plate" row), the sum swings with the particle count and
-    the resulting pressure error jumped to ~80-90%. A plain mean stays normalised
-    by whatever count actually landed in the slab, so it degrades far more gently
-    when fed imperfect (network) positions instead of ground truth. Accuracy on
-    perfect data does not equal robustness to a model's own imperfect output --
-    the second property is the one this function is actually used for.
+    scripts/calibrate_pressure.py sweeps formula variants against
+    pressure_sinkage.csv using GROUND-TRUTH frames only (no network), and by that
+    measure this formula is the worst of three tried -- it disagrees with the
+    solver's reference curve by ~19-21% even with perfect particle data, while a
+    wider+weighted variant scored 4% and a thicker-slab mean scored ~8%.
+
+    But graded against what this function is actually used for -- the network's
+    own (imperfect) rollout, not ground truth -- the ranking inverted completely:
+    this "worst" formula gave 11%/17% error, the "best" ground-truth formula gave
+    79%/89%, and the middle one gave ~35%/34%. The wider/weighted formula divides
+    by a FIXED plate area regardless of how many particles the disk actually
+    catches, so it swings hard once the network's position error (largest exactly
+    under the plate, see zone_report) shifts which particles fall inside it. The
+    thicker-slab mean reaches deeper into the soil, where the network's own stress
+    error apparently compounds differently across the 200-step rollout. Neither
+    failure was visible from ground-truth accuracy alone.
+
+    Kept as originally written, not because it is provably correct -- it likely
+    works only because its own bias happens to partly cancel the network's rollout
+    error -- but because it is the only one of three actually validated against
+    real model output rather than against a ground truth it will never see in use.
+    Any future change to this formula needs a rollout comparison, not just a
+    ground-truth sweep, before being trusted.
 
     Sign convention of p33 in Chrono CRM was checked with --calibrate against
     pressure_sinkage.csv; if it ever looks anti-correlated on new data, flip the sign here.
@@ -58,7 +67,7 @@ def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
     center = plate_pos[:, :2].mean(0)
     z_bottom = plate_pos[:, 2].min()
     r = np.linalg.norm(soil_pos[:, :2] - center, axis=1)
-    layer = (r <= plate_radius) & (soil_pos[:, 2] <= z_bottom) & (soil_pos[:, 2] >= z_bottom - 6 * spacing)
+    layer = (r <= plate_radius) & (soil_pos[:, 2] <= z_bottom) & (soil_pos[:, 2] >= z_bottom - 2 * spacing)
     if not layer.any():
         return np.nan
     return -float(soil_p33[layer].mean())
