@@ -4,12 +4,14 @@ import torch
 
 from ..data import N_TYPES, POS, SOIL, STATE, VEL
 from .neighbors import nearest_neighbors
+from .timing import measure
 
 N_INPUT = 18                         # velocity 3, state 10, type 3, material 2
 N_EDGE = 7                          # relative position 3, distance 1, relative velocity 3
 N_OUTPUT = 16                       # delta of every original data column
 FEATURE_NAMES = ("x", "y", "z", "vx", "vy", "vz", "rho", "p11", "p22", "p33",
                  "shear12", "shear13", "shear23", "pc", "Ev", "Sv")
+FEATURE_UNITS = ("m",) * 3 + ("m/s",) * 3 + ("kg/m^3",) + ("Pa",) * 7 + ("1",) * 2
 
 
 def input_features(frame, types, phi_deg, cohesion):
@@ -26,7 +28,8 @@ def input_features(frame, types, phi_deg, cohesion):
     return np.concatenate([frame[:, VEL], state, onehot, material], axis=1).astype(np.float32)
 
 
-def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None, features=None):
+def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None, features=None,
+                 timer=None):
     """Select neighbours at t, then track those SAME IDs through t-8..t.
 
     history is (H, N, 16), oldest first. A neighbour need not have been nearby
@@ -38,20 +41,21 @@ def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None
     target_ids = np.asarray(target_ids, np.int64)
     if np.any(types[target_ids] != SOIL):
         raise ValueError("only soil particles can be prediction targets")
-    ids, valid = nearest_neighbors(frame[:, POS], target_ids, count, tree)
-    if features is None:
-        features = np.stack([input_features(f, types, phi_deg, cohesion) for f in history])
-    # Advanced indexing first gives (H, B, K, features); move H to the
-    # sequence axis to obtain (B, K, H, features).
-    rel = (history[:, ids, POS] - history[:, target_ids, POS][:, :, None, :]).transpose(1, 2, 0, 3)
-    distance = np.linalg.norm(rel, axis=-1, keepdims=True)
-    relv = (history[:, ids, VEL] - history[:, target_ids, VEL][:, :, None, :]).transpose(1, 2, 0, 3)
-    edge = np.concatenate([rel, distance, relv], axis=-1)
-    neighbors = features[:, ids].transpose(1, 2, 0, 3).copy()
-    neighbors[~valid] = 0
-    edge[~valid] = 0
-    return {"x": features[:, target_ids].transpose(1, 0, 2),
-            "neighbors": neighbors, "e": edge, "valid": valid}
+    with measure(timer, "neighbors"):
+        ids, valid = nearest_neighbors(frame[:, POS], target_ids, count, tree)
+    with measure(timer, "gather"):
+        if features is None:
+            features = np.stack([input_features(f, types, phi_deg, cohesion) for f in history])
+        # Gather the SAME IDs through time, then move H to the sequence axis.
+        rel = (history[:, ids, POS] - history[:, target_ids, POS][:, :, None, :]).transpose(1, 2, 0, 3)
+        distance = np.linalg.norm(rel, axis=-1, keepdims=True)
+        relv = (history[:, ids, VEL] - history[:, target_ids, VEL][:, :, None, :]).transpose(1, 2, 0, 3)
+        edge = np.concatenate([rel, distance, relv], axis=-1)
+        neighbors = features[:, ids].transpose(1, 2, 0, 3).copy()
+        neighbors[~valid] = 0
+        edge[~valid] = 0
+        return {"x": features[:, target_ids].transpose(1, 0, 2),
+                "neighbors": neighbors, "e": edge, "valid": valid}
 
 
 class ParticleDataset:

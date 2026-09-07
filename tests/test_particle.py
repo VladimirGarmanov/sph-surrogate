@@ -1,4 +1,8 @@
 """Behavioral checks for particle sampling, information flow and synchronous rollout."""
+import csv
+from pathlib import Path
+import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -7,11 +11,13 @@ import torch
 
 from surrogate.data import PLATE, SOIL, WALL
 from surrogate.particle.config import Config
-from surrogate.particle.data import ParticleDataset, Stats, build_inputs, to_tensors
+from surrogate.particle.compare import load_comparison, summarize, write_csv
+from surrogate.particle.data import FEATURE_NAMES, FEATURE_UNITS, ParticleDataset, Stats, build_inputs, to_tensors
 from surrogate.particle.model import ParticleNet, predict
 from surrogate.particle.neighbors import nearest_neighbors
 from surrogate.particle.rollout import predict_next_frame, rollout
 from surrogate.particle.train import split_runs
+from surrogate.particle.timing import STAGES, StepTimer
 
 
 def fixture():
@@ -209,10 +215,81 @@ class ParticleTests(unittest.TestCase):
 
         with patch("surrogate.particle.rollout.predict_next_frame", side_effect=step):
             report = rollout(torch.nn.Identity(), Config(history_frames=2), unit_stats(), run,
-                             torch.device("cpu"), n_steps=2, verbose=False)
+                             torch.device("cpu"), n_steps=2, verbose=False, save_particles=True)
         np.testing.assert_array_equal(histories[0][:, 0, 0], [0, 1, 2])
         np.testing.assert_array_equal(histories[1][:, 0, 0], [1, 2, 7])
         np.testing.assert_array_equal(report["frames"], [2, 3, 4])
+        np.testing.assert_array_equal(report["particle_frames"], [3, 4])
+        np.testing.assert_array_equal(report["particle_ids"], [0, 1, 2, 3])
+        self.assertEqual(report["particle_predicted"].shape, (2, 4, 16))
+        np.testing.assert_array_equal(report["particle_reference"], source[3:, :4])
+        np.testing.assert_array_equal(report["particle_predicted"][:, 0, 0], [7, 12])
+        error = report["particle_predicted"].astype(np.float64) - report["particle_reference"]
+        np.testing.assert_allclose(np.sqrt((error ** 2).mean(1)), report["feature_rmse"][1:])
+
+    def test_profile_and_batch_size_preserve_actual_network_predictions(self):
+        torch.manual_seed(12)
+        model = ParticleNet(16).eval()
+        torch.nn.init.normal_(model.decoder[-1].weight, std=.1)
+        frame, types = fixture()
+        history = np.repeat(frame[None], 3, axis=0)
+        history[0, :, 3] -= .03
+        cfg = Config(history_frames=2, neighbors=3, batch=2)
+        args = (model, unit_stats(), history, types, 35., 1000., cfg,
+                torch.device("cpu"), frame[types != SOIL, :6])
+        ordinary = predict_next_frame(*args)
+        timer = StepTimer("cpu")
+        start = time.perf_counter()
+        profiled = predict_next_frame(*args, timer=timer)
+        seconds = timer.finish(time.perf_counter() - start)
+        np.testing.assert_array_equal(ordinary, profiled)
+        np.testing.assert_allclose(predict_next_frame(*args, batch_size=4), ordinary, rtol=1e-5, atol=1e-6)
+        self.assertEqual(len(seconds), len(STAGES))
+        self.assertTrue(np.isfinite(seconds).all())
+        self.assertTrue(np.all(np.asarray(seconds) >= 0))
+        self.assertGreater(timer.seconds["neighbors"], 0)
+        self.assertGreater(timer.seconds["network"], 0)
+
+    def test_comparison_roundtrip_selects_original_ids_and_exports_physical_errors(self):
+        truth = np.zeros((2, 2, 16), np.float32)
+        truth[..., 6] = 1600
+        truth[1, 1, 9] = -500
+        prediction = truth.copy()
+        prediction[1, 1, :3] = [.003, .004, 0]
+        prediction[1, 1, 9] = -400
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "comparison.npz"
+            np.savez_compressed(path, particle_predicted=prediction, particle_reference=truth,
+                                particle_ids=[10, 42], particle_frames=[24, 26], particle_t=[.48, .52],
+                                feature_names=FEATURE_NAMES, feature_units=FEATURE_UNITS,
+                                mode="rollout", tag="test")
+            all_data = load_comparison(path)
+            report = summarize(all_data)
+            self.assertAlmostEqual(report["features"]["p33"]["rmse"], 50.)
+            self.assertAlmostEqual(report["position"]["rmse"], .0025)
+            self.assertEqual(report["worst_position_errors"][0]["particle_id"], 42)
+            self.assertEqual(report["worst_position_errors"][0]["frame"], 26)
+            selected = load_comparison(path, frame=26, particle_ids=[42])
+            self.assertEqual(selected["particle_predicted"].shape, (1, 1, 16))
+            table = Path(folder) / "particle.csv"
+            write_csv(table, selected)
+            with table.open() as stream:
+                rows = list(csv.DictReader(stream))
+            self.assertEqual(len(rows), 16)
+            stress = rows[9]
+            self.assertEqual((stress["particle_id"], stress["frame"], stress["quantity"], stress["unit"]),
+                             ("42", "26", "p33", "Pa"))
+            self.assertEqual(float(stress["solver"]), -500.)
+            self.assertEqual(float(stress["prediction"]), -400.)
+            self.assertEqual(float(stress["error"]), 100.)
+            with self.assertRaisesRegex(ValueError, "unknown soil particle"):
+                load_comparison(path, particle_ids=[0])
+            with self.assertRaisesRegex(ValueError, "not a stored prediction"):
+                load_comparison(path, frame=25)
+            summary_only = Path(folder) / "old.npz"
+            np.savez(summary_only, rmse=[0, .1])
+            with self.assertRaisesRegex(ValueError, "save_particles"):
+                load_comparison(summary_only)
 
 
 if __name__ == "__main__":

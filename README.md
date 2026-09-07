@@ -35,8 +35,44 @@ python -m surrogate.particle.train --resume checkpoints/particle/model.pt --step
 но не выбирается `best.pt`: такая проверка не оценивает обобщение.
 
 Тесты: `python -m unittest discover -s tests -v`.
-Новая архитектура технически проверена; полноценное обучение с историей
-и оценка качества на всех отложенных прогонах ещё не выполнены.
+Новая архитектура обучена на сервере 20 000 обновлений. Проверены первые
+10 предсказанных кадров `phi30_c500`; длинные траектории и остальные
+отложенные материалы пока не оценены. Числа — в `RESULTS.md`.
+
+### Сравнение каждой частицы с солвером и замер времени
+
+Для уже обученной модели на сервере:
+
+```bash
+python -u -m surrogate.particle.rollout \
+  --ckpt checkpoints/particle_history_k256_h8/best.pt \
+  --data_dir data --tag phi30_c500 --steps 10 --batch 32 --device cuda \
+  --save_particles --profile --plot \
+  --out checkpoints/particle_history_k256_h8/particles_phi30_c500_10.npz
+
+python -m surrogate.particle.compare \
+  --result checkpoints/particle_history_k256_h8/particles_phi30_c500_10.npz
+```
+
+`--save_particles` сохраняет все 16 предсказанных и эталонных величин
+каждой частицы. `--profile` разделяет время поиска соседей, подготовки
+данных, передачи на GPU и работы сети. Начальные истинные кадры не
+включаются в массивы предсказаний. Переобучение не требуется.
+
+Выгрузить таблицу для выбранной частицы можно на сервере или на Mac
+после скачивания **только результата**:
+
+```bash
+python -m surrogate.particle.compare \
+  --result checkpoints/particles_phi30_c500_10.npz \
+  --particle_ids 123 --csv checkpoints/particle_123.csv
+```
+
+Строка CSV: кадр, ID частицы, параметр, единица, значение солвера,
+прогноз, знаковая и абсолютная ошибки. Полные результаты хранятся
+в `.npz`; `compare` также пишет сводный JSON с RMSE, процентилями и
+номерами частиц с наибольшей ошибкой положения. Веса для `compare` не нужны.
+Подробный разбор новых функций и таймеров — в главе 23 `ML_GUIDE_RU.md`.
 
 ## Предыдущая версия GNS
 
