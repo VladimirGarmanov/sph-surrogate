@@ -31,31 +31,37 @@ def load_checkpoint(path, device):
 
 
 def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
-    """Force/area of the soil pushing on the plate, estimated from nearby particles.
+    """Mean normal stress of soil in a slab right under the plate face.
 
-    radius, slab thickness and the weighted (vs. plain-mean) formula were picked by
-    scripts/calibrate_pressure.py: swept against pressure_sinkage.csv on ground-truth
-    frames only (no network), across 6 runs. This combination gave 4.0% mean error;
-    the naive version (plate_radius, plain mean) that shipped first gave ~19-21% --
-    that gap was being misread as network inaccuracy, when it was mostly the formula.
-    Sampling a slightly wider disk (plate_radius + 2*spacing) than the plate itself
-    compensates for the plate edge cutting through particles rather than sitting
-    exactly between them; the weighted form (sum of stress*area over the true plate
-    area, not a plain mean) further corrects for how many particles happen to fall
-    in that disk, rather than assuming they evenly tile it.
+    radius and slab thickness were picked by scripts/calibrate_pressure.py: swept
+    against pressure_sinkage.csv on ground-truth frames only (no network), across 6
+    runs. A thicker slab (6x spacing instead of 2x) cut the estimator's own error
+    against the reference from ~19-21% to ~8% -- that gap had been misread as
+    network inaccuracy, when it was mostly the formula.
+
+    The sweep's single best combination (radius = plate_radius + 2*spacing, plus
+    weighting each particle's stress by a fixed representative area instead of a
+    plain mean) scored even lower on ground truth (4%), but was rejected: it sums
+    stress and divides by a FIXED plate area regardless of how many particles the
+    disk actually catches, so when the network's own rollout pushes particles out
+    of position under the plate (exactly where its error is largest -- see
+    zone_report's "under plate" row), the sum swings with the particle count and
+    the resulting pressure error jumped to ~80-90%. A plain mean stays normalised
+    by whatever count actually landed in the slab, so it degrades far more gently
+    when fed imperfect (network) positions instead of ground truth. Accuracy on
+    perfect data does not equal robustness to a model's own imperfect output --
+    the second property is the one this function is actually used for.
 
     Sign convention of p33 in Chrono CRM was checked with --calibrate against
     pressure_sinkage.csv; if it ever looks anti-correlated on new data, flip the sign here.
     """
-    radius = plate_radius + 2 * spacing
     center = plate_pos[:, :2].mean(0)
     z_bottom = plate_pos[:, 2].min()
     r = np.linalg.norm(soil_pos[:, :2] - center, axis=1)
-    layer = (r <= radius) & (soil_pos[:, 2] <= z_bottom) & (soil_pos[:, 2] >= z_bottom - 2 * spacing)
+    layer = (r <= plate_radius) & (soil_pos[:, 2] <= z_bottom) & (soil_pos[:, 2] >= z_bottom - 6 * spacing)
     if not layer.any():
         return np.nan
-    area = np.pi * radius ** 2
-    return -float(soil_p33[layer].sum()) * spacing ** 2 / area
+    return -float(soil_p33[layer].mean())
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
