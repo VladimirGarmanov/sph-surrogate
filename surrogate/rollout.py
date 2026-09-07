@@ -31,19 +31,31 @@ def load_checkpoint(path, device):
 
 
 def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
-    """Mean normal stress of soil in a thin layer right under the plate face.
+    """Force/area of the soil pushing on the plate, estimated from nearby particles.
 
-    Sign convention of p33 in Chrono CRM must be checked once against the
-    reference: run with --calibrate, which prints this estimate on ground-truth
-    frames next to pressure_sinkage.csv. If they are anti-correlated, flip the sign here.
+    radius, slab thickness and the weighted (vs. plain-mean) formula were picked by
+    scripts/calibrate_pressure.py: swept against pressure_sinkage.csv on ground-truth
+    frames only (no network), across 6 runs. This combination gave 4.0% mean error;
+    the naive version (plate_radius, plain mean) that shipped first gave ~19-21% --
+    that gap was being misread as network inaccuracy, when it was mostly the formula.
+    Sampling a slightly wider disk (plate_radius + 2*spacing) than the plate itself
+    compensates for the plate edge cutting through particles rather than sitting
+    exactly between them; the weighted form (sum of stress*area over the true plate
+    area, not a plain mean) further corrects for how many particles happen to fall
+    in that disk, rather than assuming they evenly tile it.
+
+    Sign convention of p33 in Chrono CRM was checked with --calibrate against
+    pressure_sinkage.csv; if it ever looks anti-correlated on new data, flip the sign here.
     """
+    radius = plate_radius + 2 * spacing
     center = plate_pos[:, :2].mean(0)
     z_bottom = plate_pos[:, 2].min()
     r = np.linalg.norm(soil_pos[:, :2] - center, axis=1)
-    layer = (r <= plate_radius) & (soil_pos[:, 2] <= z_bottom) & (soil_pos[:, 2] >= z_bottom - 2 * spacing)
+    layer = (r <= radius) & (soil_pos[:, 2] <= z_bottom) & (soil_pos[:, 2] >= z_bottom - 2 * spacing)
     if not layer.any():
         return np.nan
-    return -float(soil_p33[layer].mean())
+    area = np.pi * radius ** 2
+    return -float(soil_p33[layer].sum()) * spacing ** 2 / area
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
