@@ -35,9 +35,55 @@ python -m surrogate.particle.train --resume checkpoints/particle/model.pt --step
 но не выбирается `best.pt`: такая проверка не оценивает обобщение.
 
 Тесты: `python -m unittest discover -s tests -v`.
-Новая архитектура обучена на сервере 20 000 обновлений. Проверены первые
+Версия ширины 128 обучена на сервере 20 000 обновлений. Проверены первые
 10 предсказанных кадров `phi30_c500`; длинные траектории и остальные
 отложенные материалы пока не оценены. Числа — в `RESULTS.md`.
+
+### Увеличенная модель: hidden=256
+
+Ширина сети по умолчанию в `Config` и `ParticleNet` увеличена со 128 до 256:
+**1 200 656 параметров вместо 305 424**, примерно в 3.93 раза больше.
+Новый запуск без `--hidden` создаёт сеть ширины 256. Для эксперимента
+на 50 000 шагов подготовлен `scripts/train_particle_w256.sh`.
+
+Обучение начинается **с нуля**. Скрипт задаёт K=256, историю 8+1,
+batch=32, 50 000 шагов обучения, исходный `lr=1e-4` и те же четыре
+отложенных материала. Проверяем более широкую сеть при более долгом обучении.
+Увеличение размера само по себе не подтверждает улучшение rollout.
+
+После коммита, push и `git pull --ff-only` на сервере, из корня проекта
+с активированным Python-окружением, внутри tmux:
+
+```bash
+bash scripts/train_particle_w256.sh
+```
+
+Данные берутся из `data`. Веса, `config.json`, `stats.npz`, `metrics.jsonl`
+и `train.log` сохраняются в `checkpoints/particle_history_k256_h8_w256`.
+В начале ожидается `1,200,656 parameters` и `device=cuda`.
+Скрипт требует нового каталога эксперимента. Продолжение прерванного
+обучения из последнего сохранённого checkpoint:
+
+```bash
+set -o pipefail
+python -u -m surrogate.particle.train \
+  --resume checkpoints/particle_history_k256_h8_w256/model.pt \
+  --steps 50000 --device cuda \
+  2>&1 | tee -a checkpoints/particle_history_k256_h8_w256/train.log
+```
+
+`--steps 50000` задаёт общее число шагов: если уже выполнены 20 000,
+при продолжении добавятся ещё 30 000.
+
+После обучения — такая же короткая проверка, как у модели ширины 128:
+
+```bash
+python -u -m surrogate.particle.rollout \
+  --ckpt checkpoints/particle_history_k256_h8_w256/best.pt \
+  --data_dir data --tag phi30_c500 --start_frame 8 --steps 10 \
+  --batch 32 --device cuda --save_particles --plot \
+  --out checkpoints/particle_history_k256_h8_w256/particles_phi30_c500_10.npz
+```
 
 ### Дообучение на собственных прогнозах
 

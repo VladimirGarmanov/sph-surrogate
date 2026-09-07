@@ -8,7 +8,7 @@ from .data import N_EDGE, N_INPUT, N_OUTPUT
 
 class ParticleNet(nn.Module):
     """No neighbour-to-neighbour propagation and no dependence on list order."""
-    def __init__(self, hidden=128):
+    def __init__(self, hidden=256):
         super().__init__()
         self.center_encoder = mlp(N_INPUT, hidden, hidden)
         self.neighbor_encoder = mlp(N_INPUT + N_EDGE, hidden, hidden)

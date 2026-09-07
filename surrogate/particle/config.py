@@ -12,7 +12,7 @@ class Config:
     history_frames: int = 8         # previous frames PLUS the current frame
     neighbors: int = 256
     batch: int = 32                  # target particles, each with its own neighbour histories
-    hidden: int = 128
+    hidden: int = 256
     lr: float = 1e-4
     lr_decay_steps: int = 50_000
     steps: int = 20_000
