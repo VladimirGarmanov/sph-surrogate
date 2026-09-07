@@ -1,0 +1,176 @@
+"""Train histories of one particle + K neighbours -> 16 changes over one frame.
+
+    python -m surrogate.particle.train --data_dir data --neighbors 256 --steps 20000
+"""
+import argparse
+import json
+import time
+from dataclasses import fields
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from ..data import discover_runs
+from ..model import pick_device
+from .config import Config
+from .data import FEATURE_NAMES, ParticleDataset, Stats, to_tensors
+from .model import ParticleNet, predict
+
+CHECKPOINT_KIND = "particle-history-delta-v2"
+
+
+def load_checkpoint(path):
+    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+    if checkpoint.get("kind") != CHECKPOINT_KIND:
+        raise ValueError("expected a particle-history-delta-v2 checkpoint; older architectures are incompatible")
+    return checkpoint
+
+
+def split_runs(runs, cfg):
+    tags = {run.tag for run in runs}
+    missing = set(cfg.holdout_tags) - tags
+    if missing:
+        raise ValueError(f"missing holdout runs: {sorted(missing)}; download them or set --holdout explicitly. "
+                         "Use --holdout '' only for a training-data diagnostic.")
+    train = [run for run in runs if run.tag not in cfg.holdout_tags]
+    val = [run for run in runs if run.tag in cfg.holdout_tags]
+    if not train:
+        raise ValueError("no training runs remain after the holdout split")
+    return train, val
+
+
+@torch.no_grad()
+def evaluate(model, samples, stats, device):
+    was_training = model.training
+    model.eval()
+    squared = np.zeros(len(FEATURE_NAMES), np.float64)
+    baseline_squared = np.zeros_like(squared)
+    count = 0
+    zero_delta = stats.norm("target", np.zeros(len(FEATURE_NAMES), np.float32))
+    for sample in samples:
+        batch = {key: value.to(device) for key, value in sample.items()}
+        y = batch["y"].cpu().numpy()
+        err = predict(model, batch).cpu().numpy() - y
+        squared += (err.astype(np.float64) ** 2).sum(0)
+        baseline_squared += ((y - zero_delta).astype(np.float64) ** 2).sum(0)
+        count += len(y)
+    model.train(was_training)
+    feature_mse = squared / count
+    return {"mse": float(feature_mse.mean()),
+            "zero_delta_mse": float((baseline_squared / count).mean()),
+            "feature_mse": feature_mse.tolist(),
+            "feature_rmse": (np.sqrt(feature_mse) * stats.arrays["target_std"]).tolist(),
+            "particles": count}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for field in fields(Config):
+        parser.add_argument(f"--{field.name}", type=type(field.default), default=argparse.SUPPRESS,
+                            help=f"default: {field.default}")
+    parser.add_argument("--resume", help="continue a particle checkpoint using its config and normalization")
+    args = vars(parser.parse_args())
+    resume = args.pop("resume")
+    checkpoint = load_checkpoint(resume) if resume else None
+    settings = dict(checkpoint["config"]) if checkpoint else {}
+    if resume:
+        settings["out_dir"] = str(Path(resume).parent)
+    settings.update(args)
+    cfg = Config.from_dict(settings)
+    if checkpoint:
+        for key in ("neighbors", "hidden", "dt", "frame_stride", "history_frames", "holdout", "batch",
+                    "seed", "lr", "lr_decay_steps", "val_samples", "stats_frames"):
+            if cfg.to_dict()[key] != checkpoint["config"][key]:
+                raise ValueError(f"cannot change {key} on resume; start a new experiment instead")
+    if checkpoint and cfg.steps <= checkpoint["step"]:
+        raise ValueError("--steps is the total update count; set it above the checkpoint step")
+    out = Path(cfg.out_dir)
+    if not resume and any((out / name).exists() for name in ("model.pt", "best.pt")):
+        raise ValueError("out_dir already has a checkpoint; choose another --out_dir or use --resume")
+    runs = discover_runs(cfg.data_dir)
+    train_runs, val_runs = split_runs(runs, cfg)
+    torch.manual_seed(cfg.seed)
+    device = pick_device() if cfg.device == "auto" else torch.device(cfg.device)
+    print(f"device={device} train={[r.tag for r in train_runs]} holdout={[r.tag for r in val_runs]}", flush=True)
+    label = "VAL" if val_runs else "TRAIN_DIAGNOSTIC"
+    if not val_runs:
+        print("No independent validation: diagnostics use training runs; best.pt will not be selected.", flush=True)
+
+    dataset = ParticleDataset(train_runs, cfg, seed=cfg.seed)
+    if checkpoint:
+        stats = Stats(checkpoint["stats"])
+    else:
+        stats_data = ParticleDataset(train_runs, cfg, seed=cfg.seed + 2)
+        stats = Stats.compute(stats_data.sample() for _ in range(cfg.stats_frames))
+    val_data = ParticleDataset(val_runs or train_runs, cfg, seed=cfg.seed + 1)
+    val_samples = [to_tensors(val_data.sample(), stats) for _ in range(cfg.val_samples)]
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "config.json").write_text(json.dumps(cfg.to_dict(), indent=2) + "\n")
+    np.savez(out / "stats.npz", **stats.arrays)
+
+    model = ParticleNet(cfg.hidden).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: 0.1 ** (step / cfg.lr_decay_steps))
+    step, best_val = 0, float("inf")
+    if checkpoint:
+        model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        scheduler.load_state_dict(checkpoint["scheduler"])
+        step, best_val = checkpoint["step"], checkpoint["best_val"]
+        dataset.rng.bit_generator.state = checkpoint["data_rng"]
+        torch.set_rng_state(checkpoint["torch_rng"])
+
+    def save(name):
+        torch.save({"kind": CHECKPOINT_KIND, "config": cfg.to_dict(), "stats": stats.to_dict(),
+                    "model": model.state_dict(), "optimizer": optimizer.state_dict(),
+                    "scheduler": scheduler.state_dict(), "step": step, "best_val": best_val,
+                    "data_rng": dataset.rng.bit_generator.state, "torch_rng": torch.get_rng_state(),
+                    "train_tags": [r.tag for r in train_runs], "val_tags": [r.tag for r in val_runs]}, out / name)
+
+    print(f"{sum(p.numel() for p in model.parameters()):,} parameters; "
+          f"batch={cfg.batch} targets, K={cfg.neighbors}, history={cfg.history_frames}+current, "
+          f"dt={cfg.dt * cfg.frame_stride:g}s", flush=True)
+    model.train()
+    start = time.perf_counter()
+    running, seen = 0., 0
+    with (out / "metrics.jsonl").open("a" if resume else "w") as log:
+        while step < cfg.steps:
+            batch = {key: value.to(device) for key, value in to_tensors(dataset.sample(), stats).items()}
+            loss = ((predict(model, batch) - batch["y"]) ** 2).mean()
+            if not torch.isfinite(loss).item():
+                raise FloatingPointError(f"non-finite training loss at step {step + 1}")
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0, error_if_nonfinite=True)
+            optimizer.step()
+            scheduler.step()
+            step += 1
+            running += loss.item()
+            seen += 1
+            if step % cfg.log_every == 0 or step == cfg.steps:
+                record = {"step": step, "split": "TRAIN", "mse": running / seen,
+                          "lr": scheduler.get_last_lr()[0]}
+                print(f"[{step:6d}] MSE={record['mse']:.5g} lr={record['lr']:.2g} "
+                      f"{seen / (time.perf_counter() - start):.2f} updates/s", flush=True)
+                log.write(json.dumps(record) + "\n")
+                running, seen, start = 0., 0, time.perf_counter()
+            if step % cfg.val_every == 0 or step == cfg.steps:
+                report = evaluate(model, val_samples, stats, device)
+                if not np.isfinite(report["mse"]):
+                    raise FloatingPointError("non-finite validation error")
+                print(f"[{step:6d}] {label} MSE={report['mse']:.5g} "
+                      f"unchanged-particle baseline={report['zero_delta_mse']:.5g}", flush=True)
+                log.write(json.dumps({"step": step, "split": label, **report}) + "\n")
+                log.flush()
+                improved = bool(val_runs) and report["mse"] < best_val
+                if improved:
+                    best_val = report["mse"]
+                save("model.pt")
+                if improved:
+                    save("best.pt")
+        print(f"saved {out / 'model.pt'}", flush=True)
+
+
+if __name__ == "__main__":
+    main()
