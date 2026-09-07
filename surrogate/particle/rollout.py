@@ -67,8 +67,19 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbose=True,
-            save_particles=False, profile=False):
-    initial_frame = cfg.history_frames * cfg.frame_stride
+            save_particles=False, profile=False, start_frame=None):
+    """Predict after a true history window ending at ``start_frame``.
+
+    ``start_frame`` is an index in the original run, not a prediction count.
+    The window spans ``history_frames * frame_stride`` original frames; its
+    stride may start at any offset. By default, use the earliest full window.
+    """
+    history_span = cfg.history_frames * cfg.frame_stride
+    initial_frame = history_span if start_frame is None else start_frame
+    if isinstance(initial_frame, (bool, np.bool_)) or not isinstance(initial_frame, (int, np.integer)):
+        raise ValueError("start_frame must be an integer frame index")
+    if initial_frame < history_span:
+        raise ValueError(f"start_frame must be at least {history_span} to provide the full history")
     frames = np.arange(initial_frame, run.n_frames, cfg.frame_stride)
     if n_steps is not None:
         if n_steps < 1:
@@ -78,7 +89,8 @@ def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbo
         raise ValueError("not enough frames for one prediction")
     model.eval()
     types, soil = run.types, run.types == SOIL
-    history = np.stack([run.frame(t) for t in range(0, initial_frame + 1, cfg.frame_stride)])
+    history = np.stack([run.frame(t) for t in range(initial_frame - history_span,
+                                                  initial_frame + 1, cfg.frame_stride)])
     history[:, ~soil, STATE] = 0
     current = history[-1]
     rmse = np.zeros(len(frames), np.float64)
@@ -130,7 +142,8 @@ def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbo
                     f"{key}={timer.seconds[key]:.3f}" for key in STAGES), flush=True)
     result = {"frames": frames, "t": frames * cfg.dt, "rmse": rmse, "feature_rmse": feature_rmse,
               "p_pred": p_pred, "p_gt": p_gt, "step_wall": np.asarray(wall),
-              "evaluation_wall": np.asarray(evaluation_wall), "mode": np.asarray("rollout")}
+              "evaluation_wall": np.asarray(evaluation_wall), "mode": np.asarray("rollout"),
+              "initial_frame": np.asarray(initial_frame)}
     if save_particles:
         result.update(particle_predicted=particle_predicted, particle_reference=particle_reference,
                       particle_ids=np.flatnonzero(soil), particle_frames=frames[1:],
@@ -148,6 +161,9 @@ def main():
     parser.add_argument("--data_dir", default=None)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--steps", type=int, default=None, help="predictions after the initial true history window")
+    parser.add_argument("--start_frame", type=int, default=None,
+                        help="original index of the last true history frame; first prediction is start_frame + "
+                             "frame_stride (default: history_frames * frame_stride, the earliest full window)")
     parser.add_argument("--batch", type=int, default=None, help="targets per inference batch; does not change neighbours")
     parser.add_argument("--out", default=None, help="output npz; add --save_particles for full comparison arrays")
     parser.add_argument("--save_particles", action="store_true",
@@ -173,7 +189,7 @@ def main():
     if args.profile:
         print("Profile synchronizes GPU stages; compare throughput separately without --profile.", flush=True)
     result = rollout(model, cfg, stats, run, device, args.steps, args.batch,
-                     save_particles=args.save_particles, profile=args.profile)
+                     save_particles=args.save_particles, profile=args.profile, start_frame=args.start_frame)
     result.update(tag=np.asarray(run.tag), checkpoint_step=np.asarray(checkpoint["step"]),
                   batch_size=np.asarray(batch_size), neighbors=np.asarray(cfg.neighbors),
                   history_frames=np.asarray(cfg.history_frames), dt=np.asarray(cfg.dt * cfg.frame_stride))

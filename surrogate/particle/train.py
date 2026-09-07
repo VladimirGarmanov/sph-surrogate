@@ -73,6 +73,8 @@ def main():
     args = vars(parser.parse_args())
     resume = args.pop("resume")
     checkpoint = load_checkpoint(resume) if resume else None
+    if checkpoint and checkpoint.get("training_mode") == "rollout-replay-v1":
+        raise ValueError("resume rollout-replay training with surrogate.particle.finetune --resume")
     settings = dict(checkpoint["config"]) if checkpoint else {}
     if resume:
         settings["out_dir"] = str(Path(resume).parent)
