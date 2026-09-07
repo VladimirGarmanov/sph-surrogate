@@ -102,25 +102,48 @@ def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
             "step_wall": np.array(step_wall)}
 
 
+STATE_NAMES = ["rho", "p11", "p22", "p33", "shear12", "shear13", "shear23", "pc", "Ev", "Sv"]
+
+
 def zone_report(run, pred, cfg, plate_radius=0.15):
     """Where is the error: under the plate or in soil that should be at rest?
-    Prints RMSE and the mean error vector (a drift shows up as a non-zero mean)."""
+    Prints RMSE, the mean error vector (a drift shows up as a non-zero mean), and
+    percentiles of the per-particle error -- a single mean can hide "almost every
+    particle is fine, a handful are wildly off" behind a merely-large number."""
     T = int(pred["frames"][-1])
     gt = np.asarray(run.soil[T][:, POS])
     err = pred["pos"][T] - gt
+    dist = np.linalg.norm(err, axis=1) * 1e3   # per-particle position error, mm
     plate0 = np.asarray(run.plate[0][:, POS])
     center, z_top = plate0[:, :2].mean(0), plate0[:, 2].min()
     lateral = np.linalg.norm(gt[:, :2] - center, axis=1)
     under = (lateral <= plate_radius + 2 * cfg.spacing) & (gt[:, 2] >= z_top - 0.15)
     moved = np.linalg.norm(gt - np.asarray(run.soil[0][:, POS]), axis=1) > cfg.spacing / 4
-    print(f"\nerror split at the last frame (n = {len(gt)}):")
+    print(f"\nposition error split at the last frame (n = {len(gt)}), per-particle |error| in mm:")
+    print(f"  {'':28s} {'n':>6}  {'p50':>7} {'p90':>7} {'p99':>7} {'max':>8}   mean vector (x,y,z)")
     for name, m in (("under plate", under), ("rest of soil", ~under), ("moved > spacing/4 in truth", moved), ("static in truth", ~moved)):
         if not m.any():
             continue
-        e = err[m]
-        rmse = np.sqrt((e ** 2).sum(1).mean()) * 1e3
-        mean = e.mean(0) * 1e3
-        print(f"  {name:28s} n={m.sum():6d}  rmse={rmse:6.2f} mm  mean err=({mean[0]:+.2f}, {mean[1]:+.2f}, {mean[2]:+.2f}) mm")
+        p50, p90, p99, pmax = np.percentile(dist[m], [50, 90, 99, 100])
+        mean = err[m].mean(0) * 1e3
+        print(f"  {name:28s} {m.sum():6d}  {p50:7.2f} {p90:7.2f} {p99:7.2f} {pmax:8.2f}   ({mean[0]:+.2f}, {mean[1]:+.2f}, {mean[2]:+.2f})")
+
+
+def state_report(run, pred, cfg):
+    """Per-particle error for each of the 10 predicted state features separately
+    (density, the 6 stress components, pc/Ev/Sv), instead of the training loop's
+    4 coarse groups (acc/rho/stress/plast) which hide which specific quantity is
+    actually well or badly predicted."""
+    T = int(pred["frames"][-1])
+    gt_state = np.asarray(run.soil[T][:, STATE])
+    pred_state = pred["state"][T]
+    print(f"\nstate error at the last frame, per feature (n = {len(gt_state)}):")
+    print(f"  {'feature':10s} {'true std':>10}  {'p50':>9} {'p90':>9} {'p99':>9}   (errors in the feature's own units)")
+    for i, name in enumerate(STATE_NAMES):
+        true_std = gt_state[:, i].std()
+        abs_err = np.abs(pred_state[:, i] - gt_state[:, i])
+        p50, p90, p99 = np.percentile(abs_err, [50, 90, 99])
+        print(f"  {name:10s} {true_std:10.3g}  {p50:9.3g} {p90:9.3g} {p99:9.3g}")
 
 
 def pressure_curves(run, pred, cfg):
@@ -180,6 +203,7 @@ def main():
     print(f"\nstable steps (rmse < {thr * 1e3:.1f} mm): {stable} of {len(rmse) - 1}  (stride {cfg.frame_stride}, {len(rmse) - 1} steps cover frames 0..{frames[-1]})")
     print(f"final rmse: {rmse[-1] * 1e3:.2f} mm")
     zone_report(run, pred, cfg)
+    state_report(run, pred, cfg)
 
     # -- plate pressure -----------------------------------------------------
     t, p_pred, p_gt, p_ref = pressure_curves(run, pred, cfg)
