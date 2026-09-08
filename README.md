@@ -12,18 +12,23 @@
 модель объединяет информацию о соседях и предсказывает изменение всех
 16 величин центра через 0.02 с. Кубов и halo в этом режиме нет.
 
+Соседи выбираются заново по текущим координатам на каждом шаге rollout:
+это уже динамическое KNN-соседство. Обработка использует сообщения
+непосредственных соседей, без нескольких раундов обмена между ними.
+[Чем это отличается от GNS и что может ускорить расчёт](docs/DYNAMIC_NEIGHBORS_RU.md).
+
 ```bash
 # Измерить соседство и физический радиус до K-го соседа.
 python scripts/particle_neighbors.py --tag phi35_c1000 --neighbors 128 256 512
 
-# Полное обучение: каталог data должен содержать обучающие и holdout-прогоны.
-python -m surrogate.particle.train --data_dir data --neighbors 256 --history_frames 8 --batch 32 --steps 20000
+# Новый эксперимент: hidden=256, 50 000 шагов, все train/holdout-прогоны в data.
+bash scripts/train_particle_w256.sh
 
 # Проверить самостоятельную прокрутку на отложенном материале.
-python -m surrogate.particle.rollout --ckpt checkpoints/particle/best.pt --tag phi30_c500 --plot
+python -m surrogate.particle.rollout --ckpt checkpoints/particle_history_k256_h8_w256/best.pt --tag phi30_c500 --steps 10 --save_particles --plot
 
 # Продолжить с сохранёнными настройками, нормализацией и оптимизатором.
-python -m surrogate.particle.train --resume checkpoints/particle/model.pt --steps 40000
+python -m surrogate.particle.train --resume checkpoints/particle_history_k256_h8_w256/model.pt --steps 50000
 ```
 
 `batch` — число целевых частиц, `neighbors` — соседей каждой из них.
@@ -39,12 +44,21 @@ python -m surrogate.particle.train --resume checkpoints/particle/model.pt --step
 10 предсказанных кадров `phi30_c500`; длинные траектории и остальные
 отложенные материалы пока не оценены. Числа — в `RESULTS.md`.
 
+По последнему присланному логу большая сеть дошла до **11 000 из 50 000
+шагов**, VAL MSE=**0.36021** против 0.88075 у неизменной частицы;
+скорость около 4,2–4,4 обновления/с на Tesla T4. TRAIN содержит крупные
+всплески, их причина пока не установлена. Rollout большой сети и аудит
+всех 25 серверных прогонов ещё не получены. Снимки метрик и локального
+аудита сохранены в [docs/experiments](docs/experiments/README.md).
+
 ### Увеличенная модель: hidden=256
 
 Ширина сети по умолчанию в `Config` и `ParticleNet` увеличена со 128 до 256:
 **1 200 656 параметров вместо 305 424**, примерно в 3.93 раза больше.
 Новый запуск без `--hidden` создаёт сеть ширины 256. Для эксперимента
 на 50 000 шагов подготовлен `scripts/train_particle_w256.sh`.
+В самом `Config` значение `steps` остаётся 20 000; скрипт явно задаёт
+50 000. Число шагов означает повторения обучения всех параметров сети.
 
 Обучение начинается **с нуля**. Скрипт задаёт K=256, историю 8+1,
 batch=32, 50 000 шагов обучения, исходный `lr=1e-4` и те же четыре
@@ -97,9 +111,39 @@ python -u -m surrogate.particle.rollout \
 `best.pt` и метрик — в [docs/PARTICLE_FINETUNE_RU.md](docs/PARTICLE_FINETUNE_RU.md).
 Запускать рабочий эксперимент нужно на сервере с обученными весами и данными.
 
+### Полная проверка данных и нормализации
+
+Для проверки всех значений, редких скачков и сохранённых масштабов обучения:
+
+```bash
+python -u -m surrogate.particle.audit --data_dir data \
+  --experiment checkpoints/particle_history_k256_h8_w256 \
+  --out_dir checkpoints/particle-data-audit
+```
+
+Сначала открой `checkpoints/particle-data-audit/report.md`. Проверка идёт
+без GPU и без выборки частиц, считает ошибки формата и NaN/Inf,
+сравнивает полный разброс TRAIN с `target_std` и сохраняет крупные переходы
+по кадрам и ID строк. Holdout учитывается отдельно. Данные и текущие веса
+не изменяются. Команды запуска и смысл отчёта — в
+[docs/PARTICLE_DATA_AUDIT_RU.md](docs/PARTICLE_DATA_AUDIT_RU.md).
+
 ### Сравнение каждой частицы с солвером и замер времени
 
-Для уже обученной модели на сервере:
+Для текущих обученных весов ширины 256 подготовлен полный запуск:
+
+```bash
+bash scripts/evaluate_particle_w256.sh
+```
+
+Он замеряет поиск соседей с проверкой совпадения ID, запускает 10 кадров
+на всех частицах и сохраняет сравнение 16 величин вместе с профилем времени.
+[Инструкция и связь с поиском Project Chrono](docs/PARTICLE_MODEL_EVALUATION_RU.md).
+Поиск выполняется крупными блоками, независимо от GPU-пакета; флаг
+`--neighbor_workers` у rollout задаёт число потоков CPU (по умолчанию 4).
+
+Для исходной обученной модели ширины 128 на сервере; новая ширина 256
+проверяется командой выше, в своём каталоге:
 
 ```bash
 python -u -m surrogate.particle.rollout \

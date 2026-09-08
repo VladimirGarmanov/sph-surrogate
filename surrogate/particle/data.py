@@ -29,7 +29,7 @@ def input_features(frame, types, phi_deg, cohesion):
 
 
 def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None, features=None,
-                 timer=None):
+                 timer=None, neighbor_selection=None):
     """Select neighbours at t, then track those SAME IDs through t-8..t.
 
     history is (H, N, 16), oldest first. A neighbour need not have been nearby
@@ -41,8 +41,14 @@ def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None
     target_ids = np.asarray(target_ids, np.int64)
     if np.any(types[target_ids] != SOIL):
         raise ValueError("only soil particles can be prediction targets")
-    with measure(timer, "neighbors"):
-        ids, valid = nearest_neighbors(frame[:, POS], target_ids, count, tree)
+    if neighbor_selection is None:
+        with measure(timer, "neighbors"):
+            ids, valid = nearest_neighbors(frame[:, POS], target_ids, count, tree)
+    else:
+        # Rollout supplies slices of neighbours found once for this snapshot.
+        ids, valid = neighbor_selection
+        if ids.shape != (len(target_ids), count) or valid.shape != ids.shape:
+            raise ValueError("precomputed neighbours must have shape (targets, count)")
     with measure(timer, "gather"):
         if features is None:
             features = np.stack([input_features(f, types, phi_deg, cohesion) for f in history])

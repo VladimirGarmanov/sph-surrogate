@@ -8,7 +8,7 @@ import pandas as pd
 
 N_FEAT = 16
 POS = slice(0, 3)
-VEL = slice(3, 6)        # solver velocity; NOT used as a feature (see dataset.py)
+VEL = slice(3, 6)        # solver velocity: ParticleNet uses it; legacy GNS derives velocity from positions
 RHO = 6
 STRESS = slice(7, 13)
 PLAST = slice(13, 16)    # pc, Ev, Sv

@@ -1,0 +1,2436 @@
+{
+  "data_dir": "data",
+  "config": {
+    "data_dir": "data",
+    "out_dir": "checkpoints/particle",
+    "holdout": "phi30_c500,phi40_c2000,phi25_c5000,phi45_c0",
+    "dt": 0.02,
+    "frame_stride": 1,
+    "history_frames": 8,
+    "neighbors": 256,
+    "batch": 32,
+    "hidden": 256,
+    "lr": 0.0001,
+    "lr_decay_steps": 50000,
+    "steps": 50000,
+    "stats_frames": 40,
+    "val_samples": 16,
+    "log_every": 100,
+    "val_every": 1000,
+    "seed": 0,
+    "device": "auto"
+  },
+  "source_experiment": null,
+  "saved_target_std": [
+    1.7232756363227963e-05,
+    2.2804790205555037e-05,
+    2.2458127205027267e-05,
+    0.0006672516465187073,
+    0.0006949176895432174,
+    0.0007129407022148371,
+    1.0,
+    480.3778991699219,
+    567.6695556640625,
+    800.021484375,
+    383.2951354980469,
+    396.12005615234375,
+    319.4881896972656,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "thresholds": [
+    10,
+    100,
+    1000
+  ],
+  "top_per_quantity_per_run": 10,
+  "missing_holdout_tags": [
+    "phi25_c5000",
+    "phi30_c500",
+    "phi40_c2000",
+    "phi45_c0"
+  ],
+  "unrecognized_npy_files": [],
+  "runs": [
+    {
+      "tag": "phi35_c1000",
+      "split": "train",
+      "files": {
+        "soil": {
+          "shape": [
+            200,
+            46464,
+            16
+          ],
+          "dtype": "float32",
+          "features": {
+            "x": {
+              "unit": "m",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.4301699995994568,
+              "max": 0.4302450120449066,
+              "mean": -6.297319926339071e-06,
+              "std": 0.2541421429758312,
+              "min_frame": 30,
+              "min_particle_id": 550,
+              "max_frame": 199,
+              "max_particle_id": 45930
+            },
+            "y": {
+              "unit": "m",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.4301829934120178,
+              "max": 0.430213987827301,
+              "mean": -1.6332570874012755e-06,
+              "std": 0.25414273272981,
+              "min_frame": 31,
+              "min_particle_id": 22198,
+              "max_frame": 176,
+              "max_particle_id": 23229
+            },
+            "z": {
+              "unit": "m",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0191016998142004,
+              "max": 0.57157301902771,
+              "mean": 0.2501441041421456,
+              "std": 0.1388521867940516,
+              "min_frame": 186,
+              "min_particle_id": 23736,
+              "max_frame": 149,
+              "max_particle_id": 23951
+            },
+            "vx": {
+              "unit": "m/s",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1.7404199838638306,
+              "max": 1.6030199527740479,
+              "mean": -7.49602508194688e-07,
+              "std": 0.0043788860846556196,
+              "min_frame": 103,
+              "min_particle_id": 28007,
+              "max_frame": 119,
+              "max_particle_id": 17422
+            },
+            "vy": {
+              "unit": "m/s",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1.2201299667358398,
+              "max": 1.272279977798462,
+              "mean": -2.1708806002074885e-06,
+              "std": 0.004366092042728887,
+              "min_frame": 23,
+              "min_particle_id": 20471,
+              "max_frame": 23,
+              "max_particle_id": 20735
+            },
+            "vz": {
+              "unit": "m/s",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.670956015586853,
+              "max": 3.197269916534424,
+              "mean": 8.141724752638013e-05,
+              "std": 0.007821374422933574,
+              "min_frame": 112,
+              "min_particle_id": 28007,
+              "max_frame": 146,
+              "max_particle_id": 23855
+            },
+            "rho": {
+              "unit": "kg/m^3",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 1600.0,
+              "max": 1600.0,
+              "mean": 1600.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "p11": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -686077.0,
+              "max": 1140.510009765625,
+              "mean": -12939.439573280028,
+              "std": 12163.508883121507,
+              "min_frame": 120,
+              "min_particle_id": 23735,
+              "max_frame": 162,
+              "max_particle_id": 12213
+            },
+            "p22": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -603304.0,
+              "max": 1153.0400390625,
+              "mean": -12942.691142431862,
+              "std": 12154.042514371351,
+              "min_frame": 120,
+              "min_particle_id": 23735,
+              "max_frame": 143,
+              "max_particle_id": 23879
+            },
+            "p33": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1036210.0,
+              "max": 1154.27001953125,
+              "mean": -13547.678303882212,
+              "std": 23895.506007285363,
+              "min_frame": 146,
+              "min_particle_id": 24958,
+              "max_frame": 183,
+              "max_particle_id": 34105
+            },
+            "shear12": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -154355.0,
+              "max": 120513.0,
+              "mean": 2.772041278462767,
+              "std": 3943.9598609384334,
+              "min_frame": 169,
+              "min_particle_id": 22702,
+              "max_frame": 187,
+              "max_particle_id": 21717
+            },
+            "shear13": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -232175.0,
+              "max": 254927.0,
+              "mean": 6.350801303079446,
+              "std": 6175.027867627733,
+              "min_frame": 169,
+              "min_particle_id": 23783,
+              "max_frame": 189,
+              "max_particle_id": 20615
+            },
+            "shear23": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -294063.0,
+              "max": 353755.0,
+              "mean": -9.746448465087415,
+              "std": 6185.064074775008,
+              "min_frame": 146,
+              "min_particle_id": 24958,
+              "max_frame": 120,
+              "max_particle_id": 23735
+            },
+            "pc": {
+              "unit": "Pa",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "Ev": {
+              "unit": "1",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "Sv": {
+              "unit": "1",
+              "finite_count": 9292800,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            }
+          },
+          "nonfinite_values": 0,
+          "nonpositive_soil_density": 0,
+          "invalid_examples_exported": 0
+        },
+        "plate": {
+          "shape": [
+            200,
+            410,
+            16
+          ],
+          "dtype": "float32",
+          "features": {
+            "x": {
+              "unit": "m",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.15000000596046448,
+              "max": 0.15000000596046448,
+              "mean": 3.681752220435628e-09,
+              "std": 0.07964648072745753,
+              "min_frame": 0,
+              "min_particle_id": 364,
+              "max_frame": 0,
+              "max_particle_id": 318
+            },
+            "y": {
+              "unit": "m",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.1496499925851822,
+              "max": 0.1496499925851822,
+              "mean": 9.528849579306471e-13,
+              "std": 0.07964642711407033,
+              "min_frame": 0,
+              "min_particle_id": 386,
+              "max_frame": 0,
+              "max_particle_id": 340
+            },
+            "z": {
+              "unit": "m",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.4700999855995178,
+              "max": 0.5099999904632568,
+              "mean": 0.49004988454282267,
+              "std": 0.011546868022287217,
+              "min_frame": 199,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 1
+            },
+            "vx": {
+              "unit": "m/s",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1.553219952654672e-08,
+              "max": 2.479979954728151e-08,
+              "mean": 7.285206080434054e-12,
+              "std": 4.641666455673696e-09,
+              "min_frame": 169,
+              "min_particle_id": 0,
+              "max_frame": 199,
+              "max_particle_id": 0
+            },
+            "vy": {
+              "unit": "m/s",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -2.0914900034085804e-08,
+              "max": 1.0059899580028286e-08,
+              "mean": -1.4638635735444302e-10,
+              "std": 3.957933287252082e-09,
+              "min_frame": 63,
+              "min_particle_id": 0,
+              "max_frame": 150,
+              "max_particle_id": 0
+            },
+            "vz": {
+              "unit": "m/s",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.004999999888241291,
+              "max": -0.004999999888241291,
+              "mean": -0.004999999888241291,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "rho": {
+              "unit": "kg/m^3",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 1600.0,
+              "max": 1600.0,
+              "mean": 1600.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "p11": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -627790.0,
+              "max": 924.2520141601562,
+              "mean": -71289.01077272548,
+              "std": 63536.5421483829,
+              "min_frame": 120,
+              "min_particle_id": 31,
+              "max_frame": 186,
+              "max_particle_id": 361
+            },
+            "p22": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -555136.0,
+              "max": 659.4979858398438,
+              "mean": -70562.01881186885,
+              "std": 63301.32995272262,
+              "min_frame": 120,
+              "min_particle_id": 31,
+              "max_frame": 144,
+              "max_particle_id": 383
+            },
+            "p33": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -798698.0,
+              "max": 1285.3800048828125,
+              "mean": -90486.13119146152,
+              "std": 72605.05725133262,
+              "min_frame": 146,
+              "min_particle_id": 256,
+              "max_frame": 0,
+              "max_particle_id": 115
+            },
+            "shear12": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -94421.3984375,
+              "max": 114328.0,
+              "mean": 422.17100060168434,
+              "std": 8845.510688279228,
+              "min_frame": 199,
+              "min_particle_id": 209,
+              "max_frame": 187,
+              "max_particle_id": 137
+            },
+            "shear13": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -196424.0,
+              "max": 230856.0,
+              "mean": 352.3148271279022,
+              "std": 35569.42652027161,
+              "min_frame": 95,
+              "min_particle_id": 65,
+              "max_frame": 189,
+              "max_particle_id": 201
+            },
+            "shear23": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -230800.0,
+              "max": 321215.0,
+              "mean": -480.5793923374432,
+              "std": 35920.74231069529,
+              "min_frame": 146,
+              "min_particle_id": 256,
+              "max_frame": 120,
+              "max_particle_id": 31
+            },
+            "pc": {
+              "unit": "Pa",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "Ev": {
+              "unit": "1",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "Sv": {
+              "unit": "1",
+              "finite_count": 82000,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            }
+          },
+          "nonfinite_values": 0,
+          "nonpositive_soil_density": 0,
+          "invalid_examples_exported": 0
+        },
+        "boundary": {
+          "shape": [
+            24855,
+            16
+          ],
+          "dtype": "float32",
+          "features": {
+            "x": {
+              "unit": "m",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.49000000953674316,
+              "max": 0.49000000953674316,
+              "mean": 0.0,
+              "std": 0.3582391942861311,
+              "min_frame": 0,
+              "min_particle_id": 9541,
+              "max_frame": 0,
+              "max_particle_id": 13912
+            },
+            "y": {
+              "unit": "m",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.49000000953674316,
+              "max": 0.49000000953674316,
+              "mean": 0.0,
+              "std": 0.3577179768516788,
+              "min_frame": 0,
+              "min_particle_id": 18531,
+              "max_frame": 0,
+              "max_particle_id": 23274
+            },
+            "z": {
+              "unit": "m",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -0.03999999910593033,
+              "max": 0.5649999976158142,
+              "mean": 0.18717803451170506,
+              "std": 0.1988388072165077,
+              "min_frame": 0,
+              "min_particle_id": 4418,
+              "max_frame": 0,
+              "max_particle_id": 6627
+            },
+            "vx": {
+              "unit": "m/s",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -2.481320007063914e-05,
+              "max": 8.328750118380412e-05,
+              "mean": 1.5091103457852066e-07,
+              "std": 4.6578388513693565e-06,
+              "min_frame": 0,
+              "min_particle_id": 18402,
+              "max_frame": 0,
+              "max_particle_id": 17100
+            },
+            "vy": {
+              "unit": "m/s",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -2.5639999876148067e-05,
+              "max": 8.581500151194632e-05,
+              "mean": 1.2337251592791805e-07,
+              "std": 4.598056918871694e-06,
+              "min_frame": 0,
+              "min_particle_id": 2396,
+              "max_frame": 0,
+              "max_particle_id": 9308
+            },
+            "vz": {
+              "unit": "m/s",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -3.840889985440299e-05,
+              "max": 2.7719799618353136e-05,
+              "mean": -1.6552042622731106e-06,
+              "std": 3.4109518844629056e-06,
+              "min_frame": 0,
+              "min_particle_id": 2255,
+              "max_frame": 0,
+              "max_particle_id": 17037
+            },
+            "rho": {
+              "unit": "kg/m^3",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 1600.0,
+              "max": 1600.0,
+              "mean": 1600.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "p11": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -9220.58984375,
+              "max": 1120.719970703125,
+              "mean": -2531.045118919634,
+              "std": 2899.5031054814126,
+              "min_frame": 0,
+              "min_particle_id": 12733,
+              "max_frame": 0,
+              "max_particle_id": 12324
+            },
+            "p22": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -9190.8798828125,
+              "max": 1124.0899658203125,
+              "mean": -2536.5898733425656,
+              "std": 2901.0863384270524,
+              "min_frame": 0,
+              "min_particle_id": 23093,
+              "max_frame": 0,
+              "max_particle_id": 21318
+            },
+            "p33": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -10404.2001953125,
+              "max": 592.7960205078125,
+              "mean": -2452.375026781615,
+              "std": 2805.5025209918863,
+              "min_frame": 0,
+              "min_particle_id": 2353,
+              "max_frame": 0,
+              "max_particle_id": 6766
+            },
+            "shear12": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1604.2900390625,
+              "max": 1603.3399658203125,
+              "mean": 0.010878100654347803,
+              "std": 189.8693697080316,
+              "min_frame": 0,
+              "min_particle_id": 18463,
+              "max_frame": 0,
+              "max_particle_id": 17037
+            },
+            "shear13": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1967.4100341796875,
+              "max": 1965.449951171875,
+              "mean": 0.011835595063029692,
+              "std": 338.4199977787947,
+              "min_frame": 0,
+              "min_particle_id": 4413,
+              "max_frame": 0,
+              "max_particle_id": 2213
+            },
+            "shear23": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": -1960.300048828125,
+              "max": 1958.8399658203125,
+              "mean": 0.001133127764680693,
+              "std": 336.03263003992095,
+              "min_frame": 0,
+              "min_particle_id": 4229,
+              "max_frame": 0,
+              "max_particle_id": 4183
+            },
+            "pc": {
+              "unit": "Pa",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "Ev": {
+              "unit": "1",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            },
+            "Sv": {
+              "unit": "1",
+              "finite_count": 24855,
+              "nan_count": 0,
+              "inf_count": 0,
+              "min": 0.0,
+              "max": 0.0,
+              "mean": 0.0,
+              "std": 0.0,
+              "min_frame": 0,
+              "min_particle_id": 0,
+              "max_frame": 0,
+              "max_particle_id": 0
+            }
+          },
+          "nonfinite_values": 0,
+          "nonpositive_soil_density": 0,
+          "invalid_examples_exported": 0
+        }
+      },
+      "issues": [],
+      "included_in_split_aggregate": true,
+      "all_adjacent_soil_deltas": {
+        "x": {
+          "unit": "m",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -0.020770996809005737,
+          "max": 0.016966000199317932,
+          "mean": -5.605271248841482e-08,
+          "std": 6.988605747440704e-05
+        },
+        "y": {
+          "unit": "m",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -0.027583003044128418,
+          "max": 0.02053079754114151,
+          "mean": -4.415214738215687e-08,
+          "std": 6.972810816561352e-05
+        },
+        "z": {
+          "unit": "m",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -0.011462032794952393,
+          "max": 0.040891021490097046,
+          "mean": 1.6614036297896774e-06,
+          "std": 0.00013500610069656487
+        },
+        "vx": {
+          "unit": "m/s",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -2.179682970046997,
+          "max": 1.5931040048599243,
+          "mean": -2.4136936728175474e-07,
+          "std": 0.00366542121693925
+        },
+        "vy": {
+          "unit": "m/s",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -1.1024500131607056,
+          "max": 1.1639909744262695,
+          "mean": -6.69298288392851e-08,
+          "std": 0.0036733435414626294
+        },
+        "vz": {
+          "unit": "m/s",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -2.8066678047180176,
+          "max": 2.619889974594116,
+          "mean": -1.3780062452106488e-07,
+          "std": 0.006689324680461932
+        },
+        "rho": {
+          "unit": "kg/m^3",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "p11": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -552342.3125,
+          "max": 513680.0,
+          "mean": -59.11027618563947,
+          "std": 990.3071235308322
+        },
+        "p22": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -300909.3125,
+          "max": 368200.8125,
+          "mean": -58.9107470826045,
+          "std": 953.3192631016982
+        },
+        "p33": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -741313.0,
+          "max": 839289.0,
+          "mean": -61.60164665268879,
+          "std": 1682.1585902197287
+        },
+        "shear12": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -84812.2734375,
+          "max": 96984.546875,
+          "mean": 0.04499174989661523,
+          "std": 397.98201258396534
+        },
+        "shear13": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -185423.203125,
+          "max": 96720.9765625,
+          "mean": 0.5247523141873002,
+          "std": 561.0303199772657
+        },
+        "shear23": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -177319.0,
+          "max": 296975.0,
+          "mean": -0.0833735334717937,
+          "std": 565.4473345684758
+        },
+        "pc": {
+          "unit": "Pa",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "Ev": {
+          "unit": "1",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "Sv": {
+          "unit": "1",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0
+        }
+      },
+      "eligible_targets": {
+        "particle_frame_pairs": 8874624,
+        "invalid_pairs": 0,
+        "zero_delta_mse": 14.677040138506557,
+        "pairs_above_saved_scale": {
+          "10": 140957,
+          "100": 7443,
+          "1000": 192
+        },
+        "features": {
+          "x": {
+            "unit": "m",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -0.020770996809005737,
+            "max": 0.016966000199317932,
+            "mean": -5.838677165924413e-08,
+            "std": 7.133080202890837e-05,
+            "saved_std": 1.7232756363227963e-05,
+            "full_std_over_saved_std": 4.139256687985055,
+            "thresholds": {
+              "10": {
+                "count": 39586,
+                "fraction_of_finite_values": 0.004460583344150693,
+                "fraction_of_zero_delta_squared_error": 0.9739422484645403
+              },
+              "100": {
+                "count": 2531,
+                "fraction_of_finite_values": 0.0002851951812268328,
+                "fraction_of_zero_delta_squared_error": 0.736922232312985
+              },
+              "1000": {
+                "count": 1,
+                "fraction_of_finite_values": 1.1268083019629902e-07,
+                "fraction_of_zero_delta_squared_error": 0.009554549412691573
+              }
+            }
+          },
+          "y": {
+            "unit": "m",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -0.027583003044128418,
+            "max": 0.02053079754114151,
+            "mean": -4.5977882805769e-08,
+            "std": 7.116964335912549e-05,
+            "saved_std": 2.2804790205555037e-05,
+            "full_std_over_saved_std": 3.120819911852959,
+            "thresholds": {
+              "10": {
+                "count": 29498,
+                "fraction_of_finite_values": 0.0033238591291304283,
+                "fraction_of_zero_delta_squared_error": 0.9649304281251635
+              },
+              "100": {
+                "count": 1495,
+                "fraction_of_finite_values": 0.00016845784114346703,
+                "fraction_of_zero_delta_squared_error": 0.6482216725741176
+              },
+              "1000": {
+                "count": 1,
+                "fraction_of_finite_values": 1.1268083019629902e-07,
+                "fraction_of_zero_delta_squared_error": 0.01692557269684848
+              }
+            }
+          },
+          "z": {
+            "unit": "m",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -0.011462032794952393,
+            "max": 0.040891021490097046,
+            "mean": 1.9741106446383087e-06,
+            "std": 0.0001377628826106838,
+            "saved_std": 2.2458127205027267e-05,
+            "full_std_over_saved_std": 6.13421062909669,
+            "thresholds": {
+              "10": {
+                "count": 28296,
+                "fraction_of_finite_values": 0.0031884167712344772,
+                "fraction_of_zero_delta_squared_error": 0.98244728405926
+              },
+              "100": {
+                "count": 2733,
+                "fraction_of_finite_values": 0.00030795670892648524,
+                "fraction_of_zero_delta_squared_error": 0.9148642418084882
+              },
+              "1000": {
+                "count": 45,
+                "fraction_of_finite_values": 5.070637358833456e-06,
+                "fraction_of_zero_delta_squared_error": 0.20349617880140003
+              }
+            }
+          },
+          "vx": {
+            "unit": "m/s",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -2.179682970046997,
+            "max": 1.5931040048599243,
+            "mean": -2.4457962982987663e-07,
+            "std": 0.0037412567333763515,
+            "saved_std": 0.0006672516465187073,
+            "full_std_over_saved_std": 5.6069651575921,
+            "thresholds": {
+              "10": {
+                "count": 47555,
+                "fraction_of_finite_values": 0.005358536879985,
+                "fraction_of_zero_delta_squared_error": 0.9788365432186288
+              },
+              "100": {
+                "count": 3022,
+                "fraction_of_finite_values": 0.0003405214688532156,
+                "fraction_of_zero_delta_squared_error": 0.838847023576822
+              },
+              "1000": {
+                "count": 20,
+                "fraction_of_finite_values": 2.2536166039259803e-06,
+                "fraction_of_zero_delta_squared_error": 0.17391659780951943
+              }
+            }
+          },
+          "vy": {
+            "unit": "m/s",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -1.1024500131607056,
+            "max": 1.1639909744262695,
+            "mean": -6.565651328609281e-08,
+            "std": 0.003749347760996648,
+            "saved_std": 0.0006949176895432174,
+            "full_std_over_saved_std": 5.395383967648263,
+            "thresholds": {
+              "10": {
+                "count": 44967,
+                "fraction_of_finite_values": 0.005066918891436978,
+                "fraction_of_zero_delta_squared_error": 0.9783462897187593
+              },
+              "100": {
+                "count": 2732,
+                "fraction_of_finite_values": 0.0003078440280962889,
+                "fraction_of_zero_delta_squared_error": 0.8338266651553701
+              },
+              "1000": {
+                "count": 35,
+                "fraction_of_finite_values": 3.943829056870466e-06,
+                "fraction_of_zero_delta_squared_error": 0.19493036226574578
+              }
+            }
+          },
+          "vz": {
+            "unit": "m/s",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -2.8066678047180176,
+            "max": 2.619889974594116,
+            "mean": 1.1338877347669824e-06,
+            "std": 0.006827624508968743,
+            "saved_std": 0.0007129407022148371,
+            "full_std_over_saved_std": 9.576707414456624,
+            "thresholds": {
+              "10": {
+                "count": 48353,
+                "fraction_of_finite_values": 0.005448456182481647,
+                "fraction_of_zero_delta_squared_error": 0.991952822155509
+              },
+              "100": {
+                "count": 3717,
+                "fraction_of_finite_values": 0.00041883464583964347,
+                "fraction_of_zero_delta_squared_error": 0.9453061333813028
+              },
+              "1000": {
+                "count": 143,
+                "fraction_of_finite_values": 1.611335871807076e-05,
+                "fraction_of_zero_delta_squared_error": 0.5065384186014974
+              }
+            }
+          },
+          "rho": {
+            "unit": "kg/m^3",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "saved_std": 1.0,
+            "full_std_over_saved_std": 0.0,
+            "thresholds": {
+              "10": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "100": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              }
+            }
+          },
+          "p11": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -552342.3125,
+            "max": 513680.0,
+            "mean": -44.08102315787059,
+            "std": 1001.5549498799027,
+            "saved_std": 480.3778991699219,
+            "full_std_over_saved_std": 2.0849313667647045,
+            "thresholds": {
+              "10": {
+                "count": 35761,
+                "fraction_of_finite_values": 0.0040295791686498494,
+                "fraction_of_zero_delta_squared_error": 0.8393906219222844
+              },
+              "100": {
+                "count": 320,
+                "fraction_of_finite_values": 3.6057865662815685e-05,
+                "fraction_of_zero_delta_squared_error": 0.3319443973829123
+              },
+              "1000": {
+                "count": 2,
+                "fraction_of_finite_values": 2.2536166039259804e-07,
+                "fraction_of_zero_delta_squared_error": 0.06378719187647658
+              }
+            }
+          },
+          "p22": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -300909.3125,
+            "max": 368200.8125,
+            "mean": -43.89258133360545,
+            "std": 963.4643766050505,
+            "saved_std": 567.6695556640625,
+            "full_std_over_saved_std": 1.6972274926351922,
+            "thresholds": {
+              "10": {
+                "count": 27173,
+                "fraction_of_finite_values": 0.0030618761989240333,
+                "fraction_of_zero_delta_squared_error": 0.7986404677074849
+              },
+              "100": {
+                "count": 189,
+                "fraction_of_finite_values": 2.1296676907100516e-05,
+                "fraction_of_zero_delta_squared_error": 0.24947090846199887
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": 0.0
+              }
+            }
+          },
+          "p33": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -741313.0,
+            "max": 839289.0,
+            "mean": -34.90120946615165,
+            "std": 1687.853166509693,
+            "saved_std": 800.021484375,
+            "full_std_over_saved_std": 2.1097597995487494,
+            "thresholds": {
+              "10": {
+                "count": 35464,
+                "fraction_of_finite_values": 0.0039961129620815486,
+                "fraction_of_zero_delta_squared_error": 0.8475793387565164
+              },
+              "100": {
+                "count": 298,
+                "fraction_of_finite_values": 3.357888739849711e-05,
+                "fraction_of_zero_delta_squared_error": 0.38605354864240365
+              },
+              "1000": {
+                "count": 2,
+                "fraction_of_finite_values": 2.2536166039259804e-07,
+                "fraction_of_zero_delta_squared_error": 0.053655853381772665
+              }
+            }
+          },
+          "shear12": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -84812.2734375,
+            "max": 96984.546875,
+            "mean": 0.04670507012730085,
+            "std": 404.34866903279465,
+            "saved_std": 383.2951354980469,
+            "full_std_over_saved_std": 1.0549277347529893,
+            "thresholds": {
+              "10": {
+                "count": 14741,
+                "fraction_of_finite_values": 0.0016610281179236439,
+                "fraction_of_zero_delta_squared_error": 0.6564571205878584
+              },
+              "100": {
+                "count": 25,
+                "fraction_of_finite_values": 2.8170207549074755e-06,
+                "fraction_of_zero_delta_squared_error": 0.06032471534306774
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": 0.0
+              }
+            }
+          },
+          "shear13": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -185423.203125,
+            "max": 96720.9765625,
+            "mean": 0.5485059068648102,
+            "std": 567.2337297690817,
+            "saved_std": 396.12005615234375,
+            "full_std_over_saved_std": 1.4319742738573413,
+            "thresholds": {
+              "10": {
+                "count": 22875,
+                "fraction_of_finite_values": 0.00257757399074034,
+                "fraction_of_zero_delta_squared_error": 0.7538447247426259
+              },
+              "100": {
+                "count": 94,
+                "fraction_of_finite_values": 1.0591998038452108e-05,
+                "fraction_of_zero_delta_squared_error": 0.11870085667285318
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": 0.0
+              }
+            }
+          },
+          "shear23": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": -177319.0,
+            "max": 296975.0,
+            "mean": -0.08688939598468545,
+            "std": 571.8311737827611,
+            "saved_std": 319.4881896972656,
+            "full_std_over_saved_std": 1.7898350931989244,
+            "thresholds": {
+              "10": {
+                "count": 32693,
+                "fraction_of_finite_values": 0.0036838743816076038,
+                "fraction_of_zero_delta_squared_error": 0.7988307911632314
+              },
+              "100": {
+                "count": 216,
+                "fraction_of_finite_values": 2.4339059322400587e-05,
+                "fraction_of_zero_delta_squared_error": 0.19493874074813633
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": 0.0
+              }
+            }
+          },
+          "pc": {
+            "unit": "Pa",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "saved_std": 1.0,
+            "full_std_over_saved_std": 0.0,
+            "thresholds": {
+              "10": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "100": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              }
+            }
+          },
+          "Ev": {
+            "unit": "1",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "saved_std": 1.0,
+            "full_std_over_saved_std": 0.0,
+            "thresholds": {
+              "10": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "100": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              }
+            }
+          },
+          "Sv": {
+            "unit": "1",
+            "finite_count": 8874624,
+            "nan_count": 0,
+            "inf_count": 0,
+            "min": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "saved_std": 1.0,
+            "full_std_over_saved_std": 0.0,
+            "thresholds": {
+              "10": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "100": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              },
+              "1000": {
+                "count": 0,
+                "fraction_of_finite_values": 0.0,
+                "fraction_of_zero_delta_squared_error": null
+              }
+            }
+          }
+        }
+      },
+      "motion": {
+        "displacement": {
+          "unit": "m",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.042169796910303224,
+          "mean": 1.5406901514152197e-05,
+          "std": 0.0001665476210055511
+        },
+        "velocity_jump": {
+          "unit": "m/s",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 3.247410689183172e-07,
+          "max": 2.9275264704619914,
+          "mean": 0.0007536859038570707,
+          "std": 0.008432543371258167
+        },
+        "endpoint_kinematic_residual": {
+          "unit": "m",
+          "finite_count": 9246336,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 9.686897005852663e-09,
+          "max": 0.020972778701859946,
+          "mean": 1.0591048955336171e-05,
+          "std": 4.8328129998458994e-05
+        }
+      },
+      "motion_inspection_counts": {
+        "spacing_m": 0.02,
+        "displacement_above_spacing": 82,
+        "kinematic_residual_above_spacing": 1
+      },
+      "eligible_start_frame": 8,
+      "eligible_stop_frame_exclusive": 199
+    }
+  ],
+  "limitations": [
+    "No random sampling: all readable values and adjacent soil transitions are scanned.",
+    "Malformed/missing files are reported; statistics exclude non-finite values with explicit counts.",
+    "Training/holdout target aggregates remain separate; no normalization or data files are changed.",
+    "Pooled statistics weight particle-frame pairs equally; the sampler weights frames equally.",
+    "zero_delta_mse measures an unchanged-particle predictor, NOT the trained network's loss.",
+    "Large transitions and kinematic residuals are inspection candidates, not proven corrupt data.",
+    "particle_id is the NPY row index. Original IDs, timestamps and units cannot be verified from NPY alone.",
+    "Boundary material states are scanned as stored, although the model masks them.",
+    "Invalid value examples are capped at 1000 per file; all invalid values are counted."
+  ],
+  "groups": {
+    "train": {
+      "particle_frame_pairs": 8874624,
+      "invalid_pairs": 0,
+      "zero_delta_mse": 14.677040138506557,
+      "pairs_above_saved_scale": {
+        "10": 140957,
+        "100": 7443,
+        "1000": 192
+      },
+      "features": {
+        "x": {
+          "unit": "m",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -0.020770996809005737,
+          "max": 0.016966000199317932,
+          "mean": -5.838677165924413e-08,
+          "std": 7.133080202890837e-05,
+          "saved_std": 1.7232756363227963e-05,
+          "full_std_over_saved_std": 4.139256687985055,
+          "thresholds": {
+            "10": {
+              "count": 39586,
+              "fraction_of_finite_values": 0.004460583344150693,
+              "fraction_of_zero_delta_squared_error": 0.9739422484645403
+            },
+            "100": {
+              "count": 2531,
+              "fraction_of_finite_values": 0.0002851951812268328,
+              "fraction_of_zero_delta_squared_error": 0.736922232312985
+            },
+            "1000": {
+              "count": 1,
+              "fraction_of_finite_values": 1.1268083019629902e-07,
+              "fraction_of_zero_delta_squared_error": 0.009554549412691573
+            }
+          }
+        },
+        "y": {
+          "unit": "m",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -0.027583003044128418,
+          "max": 0.02053079754114151,
+          "mean": -4.5977882805769e-08,
+          "std": 7.116964335912549e-05,
+          "saved_std": 2.2804790205555037e-05,
+          "full_std_over_saved_std": 3.120819911852959,
+          "thresholds": {
+            "10": {
+              "count": 29498,
+              "fraction_of_finite_values": 0.0033238591291304283,
+              "fraction_of_zero_delta_squared_error": 0.9649304281251635
+            },
+            "100": {
+              "count": 1495,
+              "fraction_of_finite_values": 0.00016845784114346703,
+              "fraction_of_zero_delta_squared_error": 0.6482216725741176
+            },
+            "1000": {
+              "count": 1,
+              "fraction_of_finite_values": 1.1268083019629902e-07,
+              "fraction_of_zero_delta_squared_error": 0.01692557269684848
+            }
+          }
+        },
+        "z": {
+          "unit": "m",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -0.011462032794952393,
+          "max": 0.040891021490097046,
+          "mean": 1.9741106446383087e-06,
+          "std": 0.0001377628826106838,
+          "saved_std": 2.2458127205027267e-05,
+          "full_std_over_saved_std": 6.13421062909669,
+          "thresholds": {
+            "10": {
+              "count": 28296,
+              "fraction_of_finite_values": 0.0031884167712344772,
+              "fraction_of_zero_delta_squared_error": 0.98244728405926
+            },
+            "100": {
+              "count": 2733,
+              "fraction_of_finite_values": 0.00030795670892648524,
+              "fraction_of_zero_delta_squared_error": 0.9148642418084882
+            },
+            "1000": {
+              "count": 45,
+              "fraction_of_finite_values": 5.070637358833456e-06,
+              "fraction_of_zero_delta_squared_error": 0.20349617880140003
+            }
+          }
+        },
+        "vx": {
+          "unit": "m/s",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -2.179682970046997,
+          "max": 1.5931040048599243,
+          "mean": -2.4457962982987663e-07,
+          "std": 0.0037412567333763515,
+          "saved_std": 0.0006672516465187073,
+          "full_std_over_saved_std": 5.6069651575921,
+          "thresholds": {
+            "10": {
+              "count": 47555,
+              "fraction_of_finite_values": 0.005358536879985,
+              "fraction_of_zero_delta_squared_error": 0.9788365432186288
+            },
+            "100": {
+              "count": 3022,
+              "fraction_of_finite_values": 0.0003405214688532156,
+              "fraction_of_zero_delta_squared_error": 0.838847023576822
+            },
+            "1000": {
+              "count": 20,
+              "fraction_of_finite_values": 2.2536166039259803e-06,
+              "fraction_of_zero_delta_squared_error": 0.17391659780951943
+            }
+          }
+        },
+        "vy": {
+          "unit": "m/s",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -1.1024500131607056,
+          "max": 1.1639909744262695,
+          "mean": -6.565651328609281e-08,
+          "std": 0.003749347760996648,
+          "saved_std": 0.0006949176895432174,
+          "full_std_over_saved_std": 5.395383967648263,
+          "thresholds": {
+            "10": {
+              "count": 44967,
+              "fraction_of_finite_values": 0.005066918891436978,
+              "fraction_of_zero_delta_squared_error": 0.9783462897187593
+            },
+            "100": {
+              "count": 2732,
+              "fraction_of_finite_values": 0.0003078440280962889,
+              "fraction_of_zero_delta_squared_error": 0.8338266651553701
+            },
+            "1000": {
+              "count": 35,
+              "fraction_of_finite_values": 3.943829056870466e-06,
+              "fraction_of_zero_delta_squared_error": 0.19493036226574578
+            }
+          }
+        },
+        "vz": {
+          "unit": "m/s",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -2.8066678047180176,
+          "max": 2.619889974594116,
+          "mean": 1.1338877347669824e-06,
+          "std": 0.006827624508968743,
+          "saved_std": 0.0007129407022148371,
+          "full_std_over_saved_std": 9.576707414456624,
+          "thresholds": {
+            "10": {
+              "count": 48353,
+              "fraction_of_finite_values": 0.005448456182481647,
+              "fraction_of_zero_delta_squared_error": 0.991952822155509
+            },
+            "100": {
+              "count": 3717,
+              "fraction_of_finite_values": 0.00041883464583964347,
+              "fraction_of_zero_delta_squared_error": 0.9453061333813028
+            },
+            "1000": {
+              "count": 143,
+              "fraction_of_finite_values": 1.611335871807076e-05,
+              "fraction_of_zero_delta_squared_error": 0.5065384186014974
+            }
+          }
+        },
+        "rho": {
+          "unit": "kg/m^3",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": 0.0,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "p11": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -552342.3125,
+          "max": 513680.0,
+          "mean": -44.08102315787059,
+          "std": 1001.5549498799027,
+          "saved_std": 480.3778991699219,
+          "full_std_over_saved_std": 2.0849313667647045,
+          "thresholds": {
+            "10": {
+              "count": 35761,
+              "fraction_of_finite_values": 0.0040295791686498494,
+              "fraction_of_zero_delta_squared_error": 0.8393906219222844
+            },
+            "100": {
+              "count": 320,
+              "fraction_of_finite_values": 3.6057865662815685e-05,
+              "fraction_of_zero_delta_squared_error": 0.3319443973829123
+            },
+            "1000": {
+              "count": 2,
+              "fraction_of_finite_values": 2.2536166039259804e-07,
+              "fraction_of_zero_delta_squared_error": 0.06378719187647658
+            }
+          }
+        },
+        "p22": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -300909.3125,
+          "max": 368200.8125,
+          "mean": -43.89258133360545,
+          "std": 963.4643766050505,
+          "saved_std": 567.6695556640625,
+          "full_std_over_saved_std": 1.6972274926351922,
+          "thresholds": {
+            "10": {
+              "count": 27173,
+              "fraction_of_finite_values": 0.0030618761989240333,
+              "fraction_of_zero_delta_squared_error": 0.7986404677074849
+            },
+            "100": {
+              "count": 189,
+              "fraction_of_finite_values": 2.1296676907100516e-05,
+              "fraction_of_zero_delta_squared_error": 0.24947090846199887
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": 0.0
+            }
+          }
+        },
+        "p33": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -741313.0,
+          "max": 839289.0,
+          "mean": -34.90120946615165,
+          "std": 1687.853166509693,
+          "saved_std": 800.021484375,
+          "full_std_over_saved_std": 2.1097597995487494,
+          "thresholds": {
+            "10": {
+              "count": 35464,
+              "fraction_of_finite_values": 0.0039961129620815486,
+              "fraction_of_zero_delta_squared_error": 0.8475793387565164
+            },
+            "100": {
+              "count": 298,
+              "fraction_of_finite_values": 3.357888739849711e-05,
+              "fraction_of_zero_delta_squared_error": 0.38605354864240365
+            },
+            "1000": {
+              "count": 2,
+              "fraction_of_finite_values": 2.2536166039259804e-07,
+              "fraction_of_zero_delta_squared_error": 0.053655853381772665
+            }
+          }
+        },
+        "shear12": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -84812.2734375,
+          "max": 96984.546875,
+          "mean": 0.04670507012730085,
+          "std": 404.34866903279465,
+          "saved_std": 383.2951354980469,
+          "full_std_over_saved_std": 1.0549277347529893,
+          "thresholds": {
+            "10": {
+              "count": 14741,
+              "fraction_of_finite_values": 0.0016610281179236439,
+              "fraction_of_zero_delta_squared_error": 0.6564571205878584
+            },
+            "100": {
+              "count": 25,
+              "fraction_of_finite_values": 2.8170207549074755e-06,
+              "fraction_of_zero_delta_squared_error": 0.06032471534306774
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": 0.0
+            }
+          }
+        },
+        "shear13": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -185423.203125,
+          "max": 96720.9765625,
+          "mean": 0.5485059068648102,
+          "std": 567.2337297690817,
+          "saved_std": 396.12005615234375,
+          "full_std_over_saved_std": 1.4319742738573413,
+          "thresholds": {
+            "10": {
+              "count": 22875,
+              "fraction_of_finite_values": 0.00257757399074034,
+              "fraction_of_zero_delta_squared_error": 0.7538447247426259
+            },
+            "100": {
+              "count": 94,
+              "fraction_of_finite_values": 1.0591998038452108e-05,
+              "fraction_of_zero_delta_squared_error": 0.11870085667285318
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": 0.0
+            }
+          }
+        },
+        "shear23": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": -177319.0,
+          "max": 296975.0,
+          "mean": -0.08688939598468545,
+          "std": 571.8311737827611,
+          "saved_std": 319.4881896972656,
+          "full_std_over_saved_std": 1.7898350931989244,
+          "thresholds": {
+            "10": {
+              "count": 32693,
+              "fraction_of_finite_values": 0.0036838743816076038,
+              "fraction_of_zero_delta_squared_error": 0.7988307911632314
+            },
+            "100": {
+              "count": 216,
+              "fraction_of_finite_values": 2.4339059322400587e-05,
+              "fraction_of_zero_delta_squared_error": 0.19493874074813633
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": 0.0
+            }
+          }
+        },
+        "pc": {
+          "unit": "Pa",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": 0.0,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "Ev": {
+          "unit": "1",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": 0.0,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "Sv": {
+          "unit": "1",
+          "finite_count": 8874624,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "std": 0.0,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": 0.0,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": 0.0,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        }
+      }
+    },
+    "holdout": {
+      "particle_frame_pairs": 0,
+      "invalid_pairs": 0,
+      "zero_delta_mse": null,
+      "pairs_above_saved_scale": {
+        "10": 0,
+        "100": 0,
+        "1000": 0
+      },
+      "features": {
+        "x": {
+          "unit": "m",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 1.7232756363227963e-05,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "y": {
+          "unit": "m",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 2.2804790205555037e-05,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "z": {
+          "unit": "m",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 2.2458127205027267e-05,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "vx": {
+          "unit": "m/s",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 0.0006672516465187073,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "vy": {
+          "unit": "m/s",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 0.0006949176895432174,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "vz": {
+          "unit": "m/s",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 0.0007129407022148371,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "rho": {
+          "unit": "kg/m^3",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "p11": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 480.3778991699219,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "p22": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 567.6695556640625,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "p33": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 800.021484375,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "shear12": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 383.2951354980469,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "shear13": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 396.12005615234375,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "shear23": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 319.4881896972656,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "pc": {
+          "unit": "Pa",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "Ev": {
+          "unit": "1",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        },
+        "Sv": {
+          "unit": "1",
+          "finite_count": 0,
+          "nan_count": 0,
+          "inf_count": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "std": null,
+          "saved_std": 1.0,
+          "full_std_over_saved_std": null,
+          "thresholds": {
+            "10": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "100": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            },
+            "1000": {
+              "count": 0,
+              "fraction_of_finite_values": null,
+              "fraction_of_zero_delta_squared_error": null
+            }
+          }
+        }
+      }
+    }
+  },
+  "totals": {
+    "runs_found": 1,
+    "complete_readable_triplets": 1,
+    "missing_holdout_runs": 4,
+    "unrecognized_npy_files": 0,
+    "format_or_coverage_issues": 0,
+    "raw_values_scanned": 150394480,
+    "nonfinite_values": 0,
+    "invalid_eligible_target_pairs": 0,
+    "nonfinite_adjacent_deltas": 0,
+    "nonpositive_soil_density": 0
+  },
+  "provenance": {
+    "documented_on": "2026-09-07",
+    "scope": "Local phi35_c1000 only; not an audit of all 25 server runs",
+    "normalization_source": "target_std transcribed from user-supplied server stdout, not the original stats.npz",
+    "config_source": "Local audit configuration; training-only fields are not a server checkpoint record",
+    "sampling": "none; all readable stored values and soil transitions"
+  }
+}

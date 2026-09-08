@@ -16,13 +16,14 @@ from ..rollout import plate_pressure
 from .config import Config
 from .data import FEATURE_NAMES, FEATURE_UNITS, Stats, build_inputs, input_features, to_tensors
 from .model import ParticleNet, predict
+from .neighbors import nearest_neighbors
 from .timing import STAGES, StepTimer, measure
 from .train import load_checkpoint
 
 
 @torch.inference_mode()
 def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, device,
-                       boundary_kinematics, batch_size=None, timer=None):
+                       boundary_kinematics, batch_size=None, timer=None, neighbor_workers=1):
     """All targets read the same history ending at t, regardless of batching.
 
     boundary_kinematics contains ONLY next prescribed x,y,z,vx,vy,vz for the
@@ -40,13 +41,20 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
     targets = np.flatnonzero(soil)
     with measure(timer, "tree"):
         tree = cKDTree(current[:, POS])
+    with measure(timer, "neighbors"):
+        # Search in large CPU chunks independently of the GPU inference batch.
+        # This selection is used only for this frame, never for a later step.
+        neighbor_ids, neighbor_valid = nearest_neighbors(
+            current[:, POS], targets, cfg.neighbors, tree, workers=neighbor_workers)
     with measure(timer, "features"):
         features = np.stack([input_features(frame, types, phi_deg, cohesion) for frame in history])
     next_frame = current.copy()
     for start in range(0, len(targets), batch_size):
         ids = targets[start:start + batch_size]
         inputs = build_inputs(history, types, phi_deg, cohesion, ids, cfg.neighbors,
-                              tree=tree, features=features, timer=timer)
+                              features=features, timer=timer,
+                              neighbor_selection=(neighbor_ids[start:start + batch_size],
+                                                  neighbor_valid[start:start + batch_size]))
         with measure(timer, "normalize"):
             tensors = to_tensors(inputs, stats)
         with measure(timer, "to_device"):
@@ -67,7 +75,7 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbose=True,
-            save_particles=False, profile=False, start_frame=None):
+            save_particles=False, profile=False, start_frame=None, neighbor_workers=1):
     """Predict after a true history window ending at ``start_frame``.
 
     ``start_frame`` is an index in the original run, not a prediction count.
@@ -114,7 +122,8 @@ def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbo
         boundary_motion = np.concatenate([run.plate[frame, :, :6], run.boundary[:, :6]])
         current = predict_next_frame(model, stats, history, types, run.phi_deg, run.cohesion,
                                      cfg, device, boundary_motion, batch_size,
-                                     **({"timer": timer} if timer else {}))
+                                     **({"timer": timer} if timer else {}),
+                                     **({"neighbor_workers": neighbor_workers} if neighbor_workers != 1 else {}))
         with measure(timer, "history"):
             history = np.concatenate([history[1:], current[None]], axis=0)
         wall.append(time.perf_counter() - tic)
@@ -165,6 +174,8 @@ def main():
                         help="original index of the last true history frame; first prediction is start_frame + "
                              "frame_stride (default: history_frames * frame_stride, the earliest full window)")
     parser.add_argument("--batch", type=int, default=None, help="targets per inference batch; does not change neighbours")
+    parser.add_argument("--neighbor_workers", type=int, default=4,
+                        help="CPU search threads (-1: all); exact KNN, independent of the GPU batch (default: 4)")
     parser.add_argument("--out", default=None, help="output npz; add --save_particles for full comparison arrays")
     parser.add_argument("--save_particles", action="store_true",
                         help="save all 16 predicted and reference values for every soil ID and predicted frame")
@@ -181,18 +192,25 @@ def main():
     batch_size = cfg.batch if args.batch is None else args.batch
     if batch_size < 1:
         parser.error("--batch must be positive")
+    if args.neighbor_workers == 0 or args.neighbor_workers < -1:
+        parser.error("--neighbor_workers must be -1 or positive")
     print(f"{run} device={device} K={cfg.neighbors} history={cfg.history_frames}+current "
           f"dt={cfg.dt * cfg.frame_stride:g}s", flush=True)
-    print(f"checkpoint step={checkpoint['step']}; {run.n_soil:,} soil particles; "
+    print(f"checkpoint step={checkpoint['step']}; hidden={cfg.hidden}; "
+          f"{sum(p.numel() for p in model.parameters()):,} parameters; {run.n_soil:,} soil particles; "
           f"{(run.n_soil + batch_size - 1) // batch_size:,} network batches/frame; "
-          f"{run.n_soil * cfg.neighbors:,} neighbour histories/frame", flush=True)
+          f"{run.n_soil * cfg.neighbors:,} neighbour histories/frame; "
+          f"neighbor_workers={args.neighbor_workers}", flush=True)
     if args.profile:
         print("Profile synchronizes GPU stages; compare throughput separately without --profile.", flush=True)
     result = rollout(model, cfg, stats, run, device, args.steps, args.batch,
-                     save_particles=args.save_particles, profile=args.profile, start_frame=args.start_frame)
+                     save_particles=args.save_particles, profile=args.profile, start_frame=args.start_frame,
+                     neighbor_workers=args.neighbor_workers)
     result.update(tag=np.asarray(run.tag), checkpoint_step=np.asarray(checkpoint["step"]),
+                  hidden=np.asarray(cfg.hidden),
                   batch_size=np.asarray(batch_size), neighbors=np.asarray(cfg.neighbors),
-                  history_frames=np.asarray(cfg.history_frames), dt=np.asarray(cfg.dt * cfg.frame_stride))
+                  history_frames=np.asarray(cfg.history_frames), dt=np.asarray(cfg.dt * cfg.frame_stride),
+                  neighbor_workers=np.asarray(args.neighbor_workers))
     over = np.flatnonzero(result["rmse"][1:] > .01)
     stable = int(over[0]) if len(over) else len(result["frames"]) - 1
     print(f"predicted steps before position RMSE exceeds 10mm: {stable}/{len(result['frames'])-1}")

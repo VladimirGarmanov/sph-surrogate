@@ -38,6 +38,72 @@ def unit_stats():
 
 
 class ParticleTests(unittest.TestCase):
+    def test_chunked_parallel_neighbors_match_brute_force(self):
+        rng = np.random.default_rng(81)
+        pos = rng.normal(size=(53, 3))
+        targets = rng.choice(len(pos), 19, replace=False)
+        for count in (1, 17, 60):
+            with self.subTest(count=count):
+                ids, valid = nearest_neighbors(pos, targets, count, workers=2, chunk_size=7)
+                distances = ((pos[targets, None] - pos[None]) ** 2).sum(-1)
+                distances[np.arange(len(targets)), targets] = np.inf
+                available = min(count, len(pos) - 1)
+                expected = np.argsort(distances, axis=1)[:, :available]
+                np.testing.assert_array_equal(ids[:, :available], expected)
+                np.testing.assert_array_equal(valid[:, :available], True)
+                np.testing.assert_array_equal(valid[:, available:], False)
+                np.testing.assert_array_equal(ids[:, available:], 0)
+
+    def test_parallel_neighbors_handle_many_coincident_and_empty_targets(self):
+        pos = np.zeros((20, 3))
+        targets = np.arange(20)
+        ids, valid = nearest_neighbors(pos, targets, 3, workers=2, chunk_size=3)
+        np.testing.assert_array_equal(valid, True)
+        self.assertFalse(np.any(ids == targets[:, None]))
+        for row in ids:
+            self.assertEqual(len(set(row)), 3)
+        serial = nearest_neighbors(pos, targets, 3)
+        np.testing.assert_array_equal(ids, serial[0])
+        self.assertEqual(nearest_neighbors(pos, [], 3)[0].shape, (0, 3))
+        ids, valid = nearest_neighbors(pos[:1], [0], 3)
+        np.testing.assert_array_equal(ids, 0)
+        self.assertFalse(valid.any())
+
+    def test_precomputed_neighbors_preserve_all_history_inputs(self):
+        frame, types = fixture()
+        history = np.repeat(frame[None], 3, axis=0)
+        history[0, :, 3] += np.arange(len(frame))
+        targets = np.array([3, 1, 0])
+        ordinary = build_inputs(history, types, 35., 1000., targets, 8)
+        selection = nearest_neighbors(history[-1, :, :3], targets, 8, workers=2)
+        cached = build_inputs(history, types, 35., 1000., targets, 8, neighbor_selection=selection)
+        for key in ordinary:
+            np.testing.assert_array_equal(cached[key], ordinary[key])
+
+    def test_frame_search_matches_per_batch_search_and_rebuilds_after_motion(self):
+        torch.manual_seed(75)
+        model = ParticleNet(16).eval()
+        torch.nn.init.normal_(model.decoder[-1].weight, std=.1)
+        frame, types = fixture()
+        history = np.repeat(frame[None], 3, axis=0)
+        cfg = Config(history_frames=2, neighbors=3, batch=2)
+
+        def per_batch(*args, **kwargs):
+            kwargs.pop("neighbor_selection")
+            return build_inputs(*args, **kwargs)
+
+        for moved in (False, True):
+            if moved:
+                history[-1, 1, 0] += 10
+            args = (model, unit_stats(), history, types, 35., 1000., cfg,
+                    torch.device("cpu"), frame[types != SOIL, :6])
+            with patch("surrogate.particle.rollout.build_inputs", side_effect=per_batch):
+                reference = predict_next_frame(*args)
+            with patch("surrogate.particle.rollout.nearest_neighbors", wraps=nearest_neighbors) as search:
+                actual = predict_next_frame(*args, neighbor_workers=2)
+                self.assertEqual(search.call_count, 1)
+            np.testing.assert_array_equal(actual, reference)
+
     def test_nearest_excludes_identity_including_coincident_particles(self):
         pos = np.array([[0., 0, 0], [0., 0, 0], [.1, 0, 0], [4., 0, 0]])
         ids, valid = nearest_neighbors(pos, [0, 1], 6)
