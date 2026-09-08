@@ -98,9 +98,13 @@ class ParticleDataset:
             np.asarray(run.soil[t + step * self.cfg.frame_stride][target_ids], np.float32)
             for step in range(1, horizon + 1)
         ])
-        sample["y"] = future - current[target_ids][None]
+        targets = future - current[target_ids][None]
         if horizon == 1:
-            sample["y"] = sample["y"][0]
+            sample["y"] = targets[0]
+        else:
+            # Модель выдаёт (batch, horizon, features), поэтому переносим
+            # ось горизонта после оси выбранных частиц.
+            sample["y"] = targets.transpose(1, 0, 2)
         return sample
 
     def sample(self):
