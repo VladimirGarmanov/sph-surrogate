@@ -62,6 +62,10 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
             batch = {key: value.to(device) for key, value in tensors.items()}
         with measure(timer, "network"):
             predicted = predict(model, batch)
+            # В многогоризонтной модели rollout использует первый прогноз,
+            # потому что каждый следующий кадр строится из обновлённой истории.
+            if predicted.ndim == 3:
+                predicted = predicted[:, 0]
         with measure(timer, "to_cpu"):
             normalized_delta = predicted.cpu().numpy()
         with measure(timer, "update"):
@@ -199,7 +203,7 @@ def main():
     checkpoint = load_checkpoint(args.ckpt)
     cfg, stats = Config.from_dict(checkpoint["config"]), Stats(checkpoint["stats"])
     device = pick_device() if args.device == "auto" else torch.device(args.device)
-    model = ParticleNet(cfg.hidden).to(device)
+    model = ParticleNet(cfg.hidden, cfg.prediction_horizon).to(device)
     model.load_state_dict(checkpoint["model"])
     run = Run(args.data_dir or cfg.data_dir, args.tag)
     batch_size = cfg.batch if args.batch is None else args.batch

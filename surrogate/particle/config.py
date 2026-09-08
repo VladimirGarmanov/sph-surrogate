@@ -10,6 +10,7 @@ class Config:
     dt: float = 0.02
     frame_stride: int = 1
     history_frames: int = 8         # предыдущие кадры ПЛЮС текущий кадр
+    prediction_horizon: int = 1     # сколько будущих кадров предсказывается одной сетью
     neighbors: int = 256
     batch: int = 32                  # целевые частицы, каждая со своими историями соседей
     hidden: int = 256
@@ -22,6 +23,7 @@ class Config:
     val_every: int = 1000
     seed: int = 0
     device: str = "auto"
+    input_noise_std: float = 0.0    # гауссов шум в единицах нормализованного входа
 
     def __post_init__(self):
         for name in ("frame_stride", "neighbors", "batch", "hidden", "steps",
@@ -32,6 +34,8 @@ class Config:
             raise ValueError("dt and lr must be positive")
         if self.history_frames < 0:
             raise ValueError("history_frames must be nonnegative")
+        if self.prediction_horizon < 1 or self.input_noise_std < 0:
+            raise ValueError("prediction_horizon must be positive and input_noise_std nonnegative")
 
     @property
     def holdout_tags(self):

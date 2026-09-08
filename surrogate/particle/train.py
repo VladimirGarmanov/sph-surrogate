@@ -14,7 +14,7 @@ import torch
 from ..data import discover_runs
 from ..model import pick_device
 from .config import Config
-from .data import FEATURE_NAMES, ParticleDataset, Stats, to_tensors
+from .data import FEATURE_NAMES, ParticleDataset, Stats, add_input_noise, to_tensors
 from .model import ParticleNet, predict
 
 CHECKPOINT_KIND = "particle-history-delta-v2"
@@ -52,6 +52,8 @@ def evaluate(model, samples, stats, device):
         batch = {key: value.to(device) for key, value in sample.items()}
         y = batch["y"].cpu().numpy()
         err = predict(model, batch).cpu().numpy() - y
+        err = err.reshape(-1, len(FEATURE_NAMES))
+        y = y.reshape(-1, len(FEATURE_NAMES))
         squared += (err.astype(np.float64) ** 2).sum(0)
         baseline_squared += ((y - zero_delta).astype(np.float64) ** 2).sum(0)
         count += len(y)
@@ -82,8 +84,10 @@ def main():
     cfg = Config.from_dict(settings)
     if checkpoint:
         for key in ("neighbors", "hidden", "dt", "frame_stride", "history_frames", "holdout", "batch",
-                    "seed", "lr", "lr_decay_steps", "val_samples", "stats_frames"):
-            if cfg.to_dict()[key] != checkpoint["config"][key]:
+                    "seed", "lr", "lr_decay_steps", "val_samples", "stats_frames",
+                    "prediction_horizon", "input_noise_std"):
+            old_value = checkpoint["config"].get(key, Config().to_dict()[key])
+            if cfg.to_dict()[key] != old_value:
                 raise ValueError(f"cannot change {key} on resume; start a new experiment instead")
     if checkpoint and cfg.steps <= checkpoint["step"]:
         raise ValueError("--steps is the total update count; set it above the checkpoint step")
@@ -111,7 +115,7 @@ def main():
     (out / "config.json").write_text(json.dumps(cfg.to_dict(), indent=2) + "\n")
     np.savez(out / "stats.npz", **stats.arrays)
 
-    model = ParticleNet(cfg.hidden).to(device)
+    model = ParticleNet(cfg.hidden, cfg.prediction_horizon).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: 0.1 ** (step / cfg.lr_decay_steps))
     step, best_val = 0, float("inf")
@@ -132,6 +136,7 @@ def main():
 
     print(f"{sum(p.numel() for p in model.parameters()):,} parameters; "
           f"batch={cfg.batch} targets, K={cfg.neighbors}, history={cfg.history_frames}+current, "
+          f"horizon={cfg.prediction_horizon}, input_noise_std={cfg.input_noise_std:g}, "
           f"dt={cfg.dt * cfg.frame_stride:g}s", flush=True)
     model.train()
     start = time.perf_counter()
@@ -139,6 +144,7 @@ def main():
     with (out / "metrics.jsonl").open("a" if resume else "w") as log:
         while step < cfg.steps:
             batch = {key: value.to(device) for key, value in to_tensors(dataset.sample(), stats).items()}
+            batch = add_input_noise(batch, cfg.input_noise_std)
             loss = ((predict(model, batch) - batch["y"]) ** 2).mean()
             if not torch.isfinite(loss).item():
                 raise FloatingPointError(f"non-finite training loss at step {step + 1}")

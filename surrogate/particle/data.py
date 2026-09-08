@@ -76,23 +76,31 @@ class ParticleDataset:
         self.runs, self.cfg = list(runs), cfg
         self.rng = np.random.default_rng(seed)
         start = cfg.history_frames * cfg.frame_stride
+        last = cfg.prediction_horizon * cfg.frame_stride
         self.index = [(ri, t) for ri, run in enumerate(self.runs)
-                      for t in range(start, run.n_frames - cfg.frame_stride)]
+                      for t in range(start, run.n_frames - last)]
         if not self.index:
             raise ValueError("not enough frames for the configured history and prediction step")
 
     def build(self, run, t, target_ids):
         start = t - self.cfg.history_frames * self.cfg.frame_stride
-        if start < 0 or t + self.cfg.frame_stride >= run.n_frames:
+        horizon = self.cfg.prediction_horizon
+        if start < 0 or t + horizon * self.cfg.frame_stride >= run.n_frames:
             raise ValueError("target frame lacks the requested history or next frame")
         history = np.stack([run.frame(s) for s in range(start, t + 1, self.cfg.frame_stride)])
         current = history[-1]
         sample = build_inputs(history, run.types, run.phi_deg, run.cohesion,
                               target_ids, self.cfg.neighbors)
-        # ID частиц сохраняются; переход только t -> t+k. Предсказываем изменения
-        # вместо больших абсолютных значений и при прогнозе прибавляем их к текущему состоянию.
-        future = np.asarray(run.soil[t + self.cfg.frame_stride][target_ids], np.float32)
-        sample["y"] = future - current[target_ids]
+        # ID частиц сохраняются. Для каждого будущего кадра предсказывается
+        # изменение относительно текущего состояния, а не абсолютные координаты
+        # и напряжения. Получается один выходной вектор на каждый горизонт.
+        future = np.stack([
+            np.asarray(run.soil[t + step * self.cfg.frame_stride][target_ids], np.float32)
+            for step in range(1, horizon + 1)
+        ])
+        sample["y"] = future - current[target_ids][None]
+        if horizon == 1:
+            sample["y"] = sample["y"][0]
         return sample
 
     def sample(self):
@@ -138,7 +146,7 @@ class Stats:
             moments["node"].add(sample["x"].reshape(-1, N_INPUT))
             moments["node"].add(sample["neighbors"][sample["valid"]].reshape(-1, N_INPUT))
             moments["edge"].add(sample["e"][sample["valid"]].reshape(-1, N_EDGE))
-            moments["target"].add(sample["y"])
+            moments["target"].add(sample["y"].reshape(-1, N_OUTPUT))
         if not moments["target"].n:
             raise ValueError("normalization requires at least one training example")
         arrays = {}
@@ -167,3 +175,16 @@ def to_tensors(sample, stats):
     result = {key: torch.from_numpy(np.ascontiguousarray(value, np.float32)) for key, value in values.items()}
     result["valid"] = torch.from_numpy(np.ascontiguousarray(sample["valid"], bool))
     return result
+
+
+def add_input_noise(batch, std, generator=None):
+    """Добавляет шум к действительным нормализованным признакам входа."""
+    if std <= 0:
+        return batch
+    for key in ("x", "neighbors", "e"):
+        noise = torch.randn(batch[key].shape, device=batch[key].device,
+                            dtype=batch[key].dtype, generator=generator) * std
+        if key != "x":
+            noise = noise * batch["valid"].unsqueeze(-1).unsqueeze(-1)
+        batch[key] = batch[key] + noise
+    return batch
