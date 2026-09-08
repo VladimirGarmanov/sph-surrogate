@@ -1,12 +1,12 @@
-"""Search for a plate-pressure estimator that matches the solver's own reference
-curve, using ONLY ground-truth simulation data (no network involved). This isolates
-"how good is our formula" from "how good is the network" -- the two were being
-conflated by the single number printed in rollout.py.
+"""Поиск формулы давления под штампом, согласующейся с эталонной кривой решателя.
+Используются ТОЛЬКО истинные данные симуляции, без нейросети. Так можно отдельно
+оценить точность формулы и точность сети: одно число в rollout.py смешивало эти ошибки.
 
     python scripts/calibrate_pressure.py --tags phi30_c500,phi35_c1000,phi40_c1000
 
-Prints mean relative error (against pressure_sinkage.csv) for each (slab thickness,
-radius, weighting) combination, across all listed tags and all their frames.
+Выводит среднюю относительную ошибку по сравнению с pressure_sinkage.csv для
+каждого сочетания толщины слоя, радиуса и взвешивания по всем указанным запускам
+и всем их кадрам.
 """
 import argparse
 import sys
@@ -17,7 +17,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from surrogate.data import Run, POS, P33  # noqa: E402
 
-SPACING = 0.02   # constant across every run, per NN_SPEC.md
+SPACING = 0.02   # одинаково для всех запусков согласно NN_SPEC.md
 
 
 def estimate(soil_pos, soil_p33, plate_pos, spacing, radius, slab_k, weighted):
@@ -28,8 +28,8 @@ def estimate(soil_pos, soil_p33, plate_pos, spacing, radius, slab_k, weighted):
     if not layer.any():
         return np.nan
     if weighted:
-        # sum(stress * particle_area) / plate_area -- differs from the plain mean only if
-        # particles don't evenly tile the nominal disk (e.g. fewer real neighbours near the rim)
+        # sum(stress * particle_area) / plate_area отличается от обычного среднего, только если
+        # частицы неравномерно покрывают заданный диск, например у его края реальных соседей меньше
         area = np.pi * radius ** 2
         return -float(soil_p33[layer].sum()) * spacing ** 2 / area
     return -float(soil_p33[layer].mean())
@@ -69,7 +69,7 @@ def main():
                         plate_pos = np.asarray(run.plate[f][:, POS])
                         est = estimate(gt[:, POS], gt[:, P33], plate_pos, SPACING, radius, slab_k, weighted)
                         i = list(frames).index(f)
-                        if p_ref[i] > 1e3 and np.isfinite(est):   # skip the near-zero start, dominated by noise
+                        if p_ref[i] > 1e3 and np.isfinite(est):   # пропускаем начало с близкими к нулю значениями, где преобладает шум
                             errs.append(abs(est - p_ref[i]) / abs(p_ref[i]))
         print(f"  {tag}: done ({len(list(frames))} frames)")
 

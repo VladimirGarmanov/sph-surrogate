@@ -1,4 +1,4 @@
-"""Measure radius populations and the physical reach of K nearest neighbours.
+"""Замер числа частиц внутри радиусов и расстояний до K ближайших соседей.
 
     python scripts/particle_neighbors.py --tag phi35_c1000 --neighbors 128 256 512
 """

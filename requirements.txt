@@ -1,10 +1,10 @@
-# Packing the sweep output into arrays (convert.py).
+# Упаковка результатов серии запусков в массивы (convert.py).
 numpy>=1.26
 pandas>=2.0
 
-# Neighbour search when building training graphs from the packed frames.
+# Поиск соседей при построении обучающих графов из упакованных кадров.
 scipy>=1.11
 
-# Model and training.
+# Модель и обучение.
 torch>=2.2
 matplotlib>=3.8

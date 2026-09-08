@@ -1,4 +1,4 @@
-"""Synchronous particle-by-particle prediction of a whole trajectory.
+"""Синхронное предсказание полной траектории по отдельным частицам.
 
     python -m surrogate.particle.rollout --ckpt checkpoints/particle/best.pt --tag phi30_c500 --plot
 """
@@ -24,10 +24,11 @@ from .train import load_checkpoint
 @torch.inference_mode()
 def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, device,
                        boundary_kinematics, batch_size=None, timer=None, neighbor_workers=1):
-    """All targets read the same history ending at t, regardless of batching.
+    """Все целевые частицы читают одну историю до момента t независимо от разбиения на пакеты.
 
-    boundary_kinematics contains ONLY next prescribed x,y,z,vx,vy,vz for the
-    non-soil markers in their existing order. No future soil or BCE stresses.
+    boundary_kinematics содержит ТОЛЬКО следующие заданные x,y,z,vx,vy,vz
+    маркеров, не относящихся к грунту, в их исходном порядке. Будущие состояния
+    грунта и напряжения BCE сюда не передаются.
     """
     batch_size = cfg.batch if batch_size is None else batch_size
     if batch_size < 1:
@@ -42,8 +43,8 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
     with measure(timer, "tree"):
         tree = cKDTree(current[:, POS])
     with measure(timer, "neighbors"):
-        # Search in large CPU chunks independently of the GPU inference batch.
-        # This selection is used only for this frame, never for a later step.
+        # Ищем соседей крупными блоками на CPU независимо от размера пакета предсказаний на GPU.
+        # Этот набор используется только для текущего кадра и не переносится на следующий шаг.
         neighbor_ids, neighbor_valid = nearest_neighbors(
             current[:, POS], targets, cfg.neighbors, tree, workers=neighbor_workers)
     with measure(timer, "features"):
@@ -75,12 +76,14 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbose=True,
-            save_particles=False, profile=False, start_frame=None, neighbor_workers=1):
-    """Predict after a true history window ending at ``start_frame``.
+            save_particles=False, profile=False, start_frame=None, neighbor_workers=1,
+            teacher_forced=False):
+    """Предсказываем после окна истинной истории, заканчивающегося на ``start_frame``.
 
-    ``start_frame`` is an index in the original run, not a prediction count.
-    The window spans ``history_frames * frame_stride`` original frames; its
-    stride may start at any offset. By default, use the earliest full window.
+    ``start_frame`` — индекс в исходном запуске, а не число предсказаний.
+    Окно охватывает ``history_frames * frame_stride`` исходных межкадровых
+    интервалов; отсчёт с заданным шагом может начинаться с любого смещения.
+    По умолчанию используется самое раннее полное окно.
     """
     history_span = cfg.history_frames * cfg.frame_stride
     initial_frame = history_span if start_frame is None else start_frame
@@ -111,29 +114,36 @@ def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbo
         shape = (len(frames) - 1, int(soil.sum()), len(FEATURE_NAMES))
         particle_predicted = np.empty(shape, np.float32)
         particle_reference = np.empty_like(particle_predicted)
-    spacing = 0.02                   # fixed resolution of this data set
+    spacing = 0.02                   # фиксированное разрешение этого набора данных
     p_pred[0] = p_gt[0] = plate_pressure(current[soil, POS], current[soil, P33],
                                        run.plate[initial_frame, :, POS], spacing)
     for index, frame in enumerate(frames[1:], start=1):
         timer = StepTimer(device) if profile else None
         tic = time.perf_counter()
-        # Read ONLY known boundary motion before prediction. Ground-truth soil
-        # is read afterwards, exclusively to evaluate the result.
+        if teacher_forced:
+            # Для диагностики каждый шаг получает истинную историю до текущего кадра.
+            history = np.stack([run.frame(t) for t in range(frame - history_span - cfg.frame_stride,
+                                                          frame, cfg.frame_stride)])
+            history[:, ~soil, STATE] = 0
+            current = history[-1]
+        # До предсказания читаем ТОЛЬКО известное движение границ. Истинные данные
+        # грунта читаем после него исключительно для оценки результата.
         boundary_motion = np.concatenate([run.plate[frame, :, :6], run.boundary[:, :6]])
         current = predict_next_frame(model, stats, history, types, run.phi_deg, run.cohesion,
                                      cfg, device, boundary_motion, batch_size,
                                      **({"timer": timer} if timer else {}),
                                      **({"neighbor_workers": neighbor_workers} if neighbor_workers != 1 else {}))
         with measure(timer, "history"):
-            history = np.concatenate([history[1:], current[None]], axis=0)
+            if not teacher_forced:
+                history = np.concatenate([history[1:], current[None]], axis=0)
         wall.append(time.perf_counter() - tic)
         if timer:
             stage_seconds.append(timer.finish(wall[-1]))
         evaluation_start = time.perf_counter()
         truth = np.asarray(run.soil[frame], np.float32)
         if save_particles:
-            # Predictions and truth share the original soil row IDs. The warm
-            # start is deliberately excluded: every stored row is a prediction.
+            # В прогнозе и истинных данных сохраняются исходные ID строк грунта. Начальная
+            # история намеренно исключена: каждая сохранённая строка содержит предсказание.
             particle_predicted[index - 1] = current[soil]
             particle_reference[index - 1] = truth
         error = current[soil].astype(np.float64) - truth
@@ -151,7 +161,8 @@ def rollout(model, cfg, stats, run, device, n_steps=None, batch_size=None, verbo
                     f"{key}={timer.seconds[key]:.3f}" for key in STAGES), flush=True)
     result = {"frames": frames, "t": frames * cfg.dt, "rmse": rmse, "feature_rmse": feature_rmse,
               "p_pred": p_pred, "p_gt": p_gt, "step_wall": np.asarray(wall),
-              "evaluation_wall": np.asarray(evaluation_wall), "mode": np.asarray("rollout"),
+              "evaluation_wall": np.asarray(evaluation_wall),
+              "mode": np.asarray("teacher_forced" if teacher_forced else "rollout"),
               "initial_frame": np.asarray(initial_frame)}
     if save_particles:
         result.update(particle_predicted=particle_predicted, particle_reference=particle_reference,
@@ -181,6 +192,8 @@ def main():
                         help="save all 16 predicted and reference values for every soil ID and predicted frame")
     parser.add_argument("--profile", action="store_true",
                         help="time search, input preparation, transfers and network; synchronizes GPU stages")
+    parser.add_argument("--teacher_forced", action="store_true",
+                        help="use the true history before every prediction; measure one-step error without rollout drift")
     parser.add_argument("--plot", action="store_true")
     args = parser.parse_args()
     checkpoint = load_checkpoint(args.ckpt)
@@ -205,7 +218,7 @@ def main():
         print("Profile synchronizes GPU stages; compare throughput separately without --profile.", flush=True)
     result = rollout(model, cfg, stats, run, device, args.steps, args.batch,
                      save_particles=args.save_particles, profile=args.profile, start_frame=args.start_frame,
-                     neighbor_workers=args.neighbor_workers)
+                     neighbor_workers=args.neighbor_workers, teacher_forced=args.teacher_forced)
     result.update(tag=np.asarray(run.tag), checkpoint_step=np.asarray(checkpoint["step"]),
                   hidden=np.asarray(cfg.hidden),
                   batch_size=np.asarray(batch_size), neighbors=np.asarray(cfg.neighbors),

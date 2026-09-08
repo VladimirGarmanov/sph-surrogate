@@ -1,1 +1,1 @@
-"""Predict each soil particle from its own history and its neighbours' histories."""
+"""Предсказание каждой частицы грунта по её собственной истории и историям соседей."""

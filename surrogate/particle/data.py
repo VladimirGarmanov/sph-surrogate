@@ -1,4 +1,4 @@
-"""One target + current neighbours, their histories, and the target's next delta."""
+"""Целевая частица, её текущие соседи, их истории и изменение целевой частицы за следующий шаг."""
 import numpy as np
 import torch
 
@@ -6,20 +6,20 @@ from ..data import N_TYPES, POS, SOIL, STATE, VEL
 from .neighbors import nearest_neighbors
 from .timing import measure
 
-N_INPUT = 18                         # velocity 3, state 10, type 3, material 2
-N_EDGE = 7                          # relative position 3, distance 1, relative velocity 3
-N_OUTPUT = 16                       # delta of every original data column
+N_INPUT = 18                         # скорость — 3, состояние — 10, тип — 3, материал — 2
+N_EDGE = 7                          # относительные координаты — 3, расстояние — 1, относительная скорость — 3
+N_OUTPUT = 16                       # изменение каждого столбца исходных данных
 FEATURE_NAMES = ("x", "y", "z", "vx", "vy", "vz", "rho", "p11", "p22", "p33",
                  "shear12", "shear13", "shear23", "pc", "Ev", "Sv")
 FEATURE_UNITS = ("m",) * 3 + ("m/s",) * 3 + ("kg/m^3",) + ("Pa",) * 7 + ("1",) * 2
 
 
 def input_features(frame, types, phi_deg, cohesion):
-    """Use measured/predicted velocity; position enters through relative edges.
+    """Используем измеренную или предсказанную скорость; координаты задаются относительно, через рёбра.
 
-    BCE stresses are a solver response, not a prescribed boundary condition.
-    Mask their entire material STATE consistently in training and rollout.
-    Their position, velocity and type still identify moving plates and walls.
+    Напряжения маркеров BCE — отклик решателя, а не заданное граничное условие.
+    Скрываем всё их материальное состояние одинаково при обучении и прогнозе.
+    Координаты, скорость и тип остаются: они описывают движущийся штамп и стенки.
     """
     state = frame[:, STATE].copy()
     state[types != SOIL] = 0
@@ -30,10 +30,11 @@ def input_features(frame, types, phi_deg, cohesion):
 
 def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None, features=None,
                  timer=None, neighbor_selection=None):
-    """Select neighbours at t, then track those SAME IDs through t-8..t.
+    """Выбираем соседей в момент t и отслеживаем ТЕ ЖЕ ID в кадрах t-8..t.
 
-    history is (H, N, 16), oldest first. A neighbour need not have been nearby
-    in the past: its own trajectory is gathered, not another neighbour's ID.
+    history имеет форму (H, N, 16), от старых кадров к новым. Раньше сосед
+    мог быть далеко: собираем его собственную траекторию, сохраняя ID,
+    а не подменяем его другой частицей, которая тогда была ближе.
     """
     if history.ndim != 3 or history.shape[-1] != 16 or not len(history):
         raise ValueError("history must have shape (H, N, 16), oldest to current")
@@ -45,14 +46,14 @@ def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None
         with measure(timer, "neighbors"):
             ids, valid = nearest_neighbors(frame[:, POS], target_ids, count, tree)
     else:
-        # Rollout supplies slices of neighbours found once for this snapshot.
+        # При последовательном прогнозе передаются срезы соседей, найденных один раз для этого кадра.
         ids, valid = neighbor_selection
         if ids.shape != (len(target_ids), count) or valid.shape != ids.shape:
             raise ValueError("precomputed neighbours must have shape (targets, count)")
     with measure(timer, "gather"):
         if features is None:
             features = np.stack([input_features(f, types, phi_deg, cohesion) for f in history])
-        # Gather the SAME IDs through time, then move H to the sequence axis.
+        # Собираем ТЕ ЖЕ ID по времени, затем переносим H на ось последовательности.
         rel = (history[:, ids, POS] - history[:, target_ids, POS][:, :, None, :]).transpose(1, 2, 0, 3)
         distance = np.linalg.norm(rel, axis=-1, keepdims=True)
         relv = (history[:, ids, VEL] - history[:, target_ids, VEL][:, :, None, :]).transpose(1, 2, 0, 3)
@@ -65,10 +66,11 @@ def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None
 
 
 class ParticleDataset:
-    """Sample target particles throughout a frame; reuse the frame within a batch.
+    """Выбираем целевые частицы по всему кадру и используем этот кадр для всего пакета.
 
-    A batch shares a timestamp only to avoid repeatedly loading arrays/building
-    trees. Every target has its own K neighbours, with no spatial crop or halo.
+    Общий момент времени внутри пакета нужен только для того, чтобы не загружать
+    массивы и не строить деревья повторно. У каждой целевой частицы свои K соседей;
+    пространственные области и дополнительные полосы вокруг их границ не выделяются.
     """
     def __init__(self, runs, cfg, seed=0):
         self.runs, self.cfg = list(runs), cfg
@@ -87,8 +89,8 @@ class ParticleDataset:
         current = history[-1]
         sample = build_inputs(history, run.types, run.phi_deg, run.cohesion,
                               target_ids, self.cfg.neighbors)
-        # Same particle IDs, only t -> t+k. Predict deltas rather than a large
-        # absolute state; add them back to current data during inference.
+        # ID частиц сохраняются; переход только t -> t+k. Предсказываем изменения
+        # вместо больших абсолютных значений и при прогнозе прибавляем их к текущему состоянию.
         future = np.asarray(run.soil[t + self.cfg.frame_stride][target_ids], np.float32)
         sample["y"] = future - current[target_ids]
         return sample
@@ -101,7 +103,7 @@ class ParticleDataset:
 
 
 class _Moments:
-    """Merge per-batch moments without storing all neighbourhoods."""
+    """Объединяем статистические моменты пакетов без хранения всех наборов соседей."""
     def __init__(self, dim):
         self.n = 0
         self.mean = np.zeros(dim, np.float64)
@@ -120,8 +122,8 @@ class _Moments:
 
     def result(self):
         std = np.sqrt(self.m2 / max(self.n, 1))
-        # Constant dimensions remain trainable zero deltas; do not fabricate
-        # noise from this numerical division safeguard.
+        # Постоянные компоненты сохраняют обучаемые нулевые изменения; защита
+        # от деления на ноль не должна создавать искусственный шум.
         return self.mean.astype(np.float32), np.where(std < 1e-8, 1., std).astype(np.float32)
 
 

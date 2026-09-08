@@ -1,17 +1,18 @@
-"""Nearest neighbours in the entire frame; no cubes or multi-hop expansion."""
+"""Ближайшие соседи во всём кадре, без кубических областей и расширения по цепочкам связей."""
 import numpy as np
 from scipy.spatial import cKDTree
 
 
 def nearest_neighbors(pos, target_ids, count, tree=None, workers=1, chunk_size=4096):
-    """Return (indices, valid), both (B, count), excluding each target itself.
+    """Возвращаем (indices, valid), оба формы (B, count), исключая саму целевую частицу.
 
-    Selecting the closest K after trimming a radius or filling it from outside
-    gives exactly K-nearest neighbours. A radius is therefore diagnostic, not a
-    second independent selection parameter. If the WHOLE frame has fewer than
-    K other particles, remaining slots are masked, never duplicate particles.
-    Query many targets together; chunks bound temporary query memory. Parallel
-    workers change execution only: the search remains exact (eps=0).
+    Отбор ближайших K с отсечением по радиусу или дополнением снаружи даёт
+    ровно K ближайших соседей. Поэтому радиус служит для диагностики,
+    а не вторым независимым параметром отбора. Если во ВСЁМ кадре меньше
+    K других частиц, лишние места маскируются, а частицы не дублируются.
+    Обрабатываем много целевых частиц за один запрос; размер блока ограничивает
+    временную память. Параллельные рабочие потоки меняют лишь выполнение:
+    поиск остаётся точным (eps=0).
     """
     pos = np.asarray(pos)
     target_ids = np.asarray(target_ids, dtype=np.int64)
@@ -35,8 +36,8 @@ def nearest_neighbors(pos, target_ids, count, tree=None, workers=1, chunk_size=4
         stop = min(start + chunk_size, len(target_ids))
         targets = target_ids[start:stop]
         _, candidates = tree.query(pos[targets], k=n_query, workers=workers)
-        # Remove the target wherever it appears, preserving the query order.
-        # With many coincident particles the target may not be returned at all.
+        # Удаляем целевую частицу из любой позиции результата, сохраняя порядок соседей.
+        # При множестве совпадающих координат целевая частица может вообще не попасть в ответ.
         is_self = candidates == targets[:, None]
         self_column = np.where(is_self.any(1), is_self.argmax(1), n_query)
         source_columns = columns + (columns >= self_column[:, None])

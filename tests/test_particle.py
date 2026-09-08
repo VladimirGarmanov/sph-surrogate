@@ -1,4 +1,4 @@
-"""Behavioral checks for particle sampling, information flow and synchronous rollout."""
+"""Проверки выборки частиц, передачи информации и синхронного последовательного прогноза."""
 import csv
 from pathlib import Path
 import tempfile
@@ -111,7 +111,7 @@ class ParticleTests(unittest.TestCase):
             selected = ids[row, valid[row]]
             self.assertEqual(set(selected), set(range(4)) - {target})
             self.assertEqual(len(selected), 3)
-            self.assertEqual(selected[-1], 3)  # fill from outside any small radius
+            self.assertEqual(selected[-1], 3)  # дополняем соседями за пределами любого малого радиуса
         trimmed, mask = nearest_neighbors(pos, [0], 2)
         self.assertEqual(set(trimmed[0, mask[0]]), {1, 2})
 
@@ -154,7 +154,7 @@ class ParticleTests(unittest.TestCase):
     def test_neighbor_order_and_padding_do_not_change_prediction(self):
         torch.manual_seed(0)
         model = ParticleNet(16)
-        # Randomize the zero-initialized head so this checks real dependence.
+        # Задаём случайные веса нулевому выходному слою, чтобы проверить реальную зависимость.
         torch.nn.init.normal_(model.decoder[-1].weight, std=.1)
         x = torch.randn(2, 9, 18)
         neighbors, edges = torch.randn(2, 7, 9, 18), torch.randn(2, 7, 9, 7)
@@ -174,7 +174,7 @@ class ParticleTests(unittest.TestCase):
         class NeighborVelocity(torch.nn.Module):
             def forward(self, x, neighbors, e, valid):
                 delta = torch.zeros((len(x), 16))
-                delta[:, 3] = neighbors[:, 0, -1, 0]  # neighbour's CURRENT velocity
+                delta[:, 3] = neighbors[:, 0, -1, 0]  # ТЕКУЩАЯ скорость соседа
                 return delta
 
         cfg = Config(neighbors=2, batch=2, history_frames=0)
@@ -206,7 +206,7 @@ class ParticleTests(unittest.TestCase):
         sample["y"] = np.broadcast_to(np.linspace(-.1, .1, 16, dtype=np.float32), (4, 16)).copy()
         stats = Stats.compute([sample])
         batch = to_tensors(sample, stats)
-        # Nonconstant normalized targets exercise the optimizer, not the mean baseline.
+        # Непостоянные нормализованные цели проверяют работу оптимизатора, а не предсказание среднего.
         batch["y"] = torch.randn(4, 16) * .1
         model = ParticleNet(16)
         opt = torch.optim.Adam(model.parameters(), lr=.01)
@@ -231,8 +231,8 @@ class ParticleTests(unittest.TestCase):
     def test_history_tracks_current_neighbor_identity_not_past_nearest_rank(self):
         frame, types = fixture()
         history = np.repeat(frame[None], 9, axis=0)
-        history[0, 1, 0] = 10.0       # current neighbour was far away
-        history[0, 2, 0] = .001      # a different particle used to be closer
+        history[0, 1, 0] = 10.0       # текущий сосед раньше был далеко
+        history[0, 2, 0] = .001      # раньше ближе была другая частица
         history[:, 1, 3] = np.arange(9) + 100
         sample = build_inputs(history, types, 35, 1000, [0], 1)
         self.assertEqual(sample["neighbors"].shape, (1, 1, 9, 18))

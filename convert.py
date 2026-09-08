@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Pack the per-frame CSV output of the dam-break sweep into one array per run.
+"""Упаковать покадровые CSV серии опытов с прорывом плотины в один массив на запуск.
 
-Chrono writes one CSV per output frame, which is both bulky (text) and slow to
-read at training time. This collapses each run into a single float32 array of
-shape (n_frames, n_particles, 8) holding
+Chrono записывает отдельный CSV для каждого выходного кадра. Текстовые файлы
+занимают много места и медленно читаются при обучении. Здесь каждый запуск
+преобразуется в один массив float32 формы (n_frames, n_particles, 8) со столбцами
 
     x, y, z, v_x, v_y, v_z, rho, pressure
 
-The |U| and acc columns are dropped: both are magnitudes derivable from the
-columns kept, so storing them only costs space.
+Столбцы |U| и acc отбрасываются: это модули величин, которые можно получить
+из сохранённых столбцов, поэтому их хранение лишь расходует место.
 
-Usage:
+Запуск:
     ./convert.py --root DEMO_OUTPUT/FSI_Dam_Break --out dataset
     ./convert.py --root DEMO_OUTPUT/FSI_Dam_Break --out dataset --delete
 """
@@ -31,12 +31,12 @@ except ImportError:
     sys.exit("pandas is required (pip install pandas) — it reads these CSVs "
              "roughly 15x faster than numpy's own parsers")
 
-# Columns to keep, in output order.
+# Сохраняемые столбцы в порядке их записи в выходной массив.
 KEEP = ["x", "y", "z", "v_x", "v_y", "v_z", "rho", "pressure"]
 
-# Chrono numbers its frames without zero padding, so fluid10 sorts before
-# fluid2 lexically. Ordering by the embedded integer is what keeps the frames
-# in time order — getting this wrong silently scrambles every trajectory.
+# Chrono нумерует кадры без ведущих нулей, поэтому при сортировке строк
+# fluid10 идёт перед fluid2. Сортировка по числу в имени сохраняет порядок
+# кадров во времени; ошибка здесь незаметно перемешивает все траектории.
 FRAME_RE = re.compile(r"(\d+)\.csv$")
 
 
@@ -58,8 +58,8 @@ def convert_run(run_dir, out_dir, jobs, delete):
     if not frames:
         return None
 
-    # A gap in the numbering means the run died partway through and the frames
-    # are not a contiguous trajectory.
+    # Пропуск в нумерации означает, что запуск оборвался, а сохранённые кадры
+    # не образуют непрерывную траекторию.
     numbers = [frame_index(f) for f in frames]
     if numbers != list(range(len(numbers))):
         return f"frame numbering is not contiguous (got {numbers[0]}..{numbers[-1]}, {len(numbers)} files)"
@@ -81,7 +81,7 @@ def convert_run(run_dir, out_dir, jobs, delete):
     out_dir.mkdir(parents=True, exist_ok=True)
     np.save(out_dir / f"{run_dir.name}.npy", data)
 
-    # The boundary markers are static, so one frame of them is enough.
+    # Граничные маркеры неподвижны, поэтому достаточно одного их кадра.
     boundary = particles / "boundary0.csv"
     if boundary.exists():
         np.save(out_dir / f"{run_dir.name}_boundary.npy", read_frame(boundary))

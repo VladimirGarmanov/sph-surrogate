@@ -1,8 +1,9 @@
-"""Training inputs from a frozen, synchronous rollout of the current model.
+"""Обучающие входы из зафиксированного синхронного прогноза текущей модели.
 
-Only the warm start and prescribed boundary motion come from the solver.
-Later solver soil states are labels, never neighbour features or positions.
-The rollout is detached: gradients pass through the next transition only.
+Из решателя берутся только начальная история и заданное движение границ.
+Более поздние истинные состояния грунта используются только как цели обучения,
+никогда как признаки или координаты соседей. Собранный прогноз отсоединён
+от графа вычислений: градиенты проходят только через следующий переход.
 """
 import numpy as np
 from scipy.spatial import cKDTree
@@ -12,7 +13,7 @@ from .data import build_inputs, input_features
 
 
 def rollout_windows(runs, cfg, steps):
-    """Every eligible (run, last known frame), including late indentation."""
+    """Все допустимые пары (запуск, последний известный кадр), включая позднее погружение штампа."""
     if steps < 1:
         raise ValueError("rollout_steps must be positive")
     first = cfg.history_frames * cfg.frame_stride
@@ -24,7 +25,7 @@ def rollout_windows(runs, cfg, steps):
 
 
 class RolloutReplay:
-    """Frozen predicted histories, with correct next-state recovery targets."""
+    """Зафиксированные предсказанные истории с корректными целями восстановления следующего состояния."""
     def __init__(self, run, cfg, result, seed=0):
         if str(result.get("mode", "")) != "rollout":
             raise ValueError("replay requires a synchronous rollout result")
@@ -79,15 +80,15 @@ class RolloutReplay:
         sample = build_inputs(history, self.types, self.run.phi_deg, self.run.cohesion,
                               ids, self.cfg.neighbors, tree=self.trees[index],
                               features=self.features[index:stop])
-        # Recovery target: the future TRUE state minus the CURRENT PREDICTED
-        # state. Subtracting the true current state would teach the wrong delta.
+        # Цель восстановления: будущее ИСТИННОЕ состояние минус ТЕКУЩЕЕ ПРЕДСКАЗАННОЕ
+        # состояние. Вычитание текущего истинного состояния учило бы неправильному изменению.
         sample["y"] = self.reference[index, self.soil_rows[ids]] - history[-1, ids]
         return sample
 
     def sample(self):
-        # Transition zero still has a completely true input history; clean
-        # examples are sampled separately. Every replay update must actually
-        # contain at least one predicted state of the centre and its neighbours.
+        # В нулевом переходе вся входная история ещё истинная; такие примеры
+        # выбираются отдельно. Каждое обновление по собранному прогнозу должно содержать
+        # хотя бы одно предсказанное состояние центральной частицы и её соседей.
         index = int(self.rng.integers(1, len(self.reference)))
         ids = self.rng.choice(self.targets, size=min(self.cfg.batch, len(self.targets)), replace=False)
         return self.build(index, ids)

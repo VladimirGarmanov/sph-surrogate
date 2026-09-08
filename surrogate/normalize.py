@@ -1,7 +1,7 @@
-"""Per-feature mean/std for nodes, edges and targets.
+"""Среднее и стандартное отклонение каждого признака узлов, рёбер и целей.
 
-Scales span eight orders of magnitude (velocities ~5e-3 m/s, stresses ~1e5 Pa).
-Without this the loss is all stress and the net treats acceleration as noise.
+Масштабы различаются на восемь порядков: скорости ~5e-3 м/с, напряжения ~1e5 Па.
+Без нормализации в функции потерь преобладают напряжения, а ускорение сеть считает шумом.
 """
 import numpy as np
 
@@ -22,7 +22,7 @@ class _Welford:
         mean = self.s / max(self.n, 1)
         var = self.ss / max(self.n, 1) - mean * mean
         std = np.sqrt(np.maximum(var, 0.0))
-        std = np.where(std < floor, 1.0, std)      # constant features (e.g. a one-hot column)
+        std = np.where(std < floor, 1.0, std)      # постоянные признаки, например столбец кодировки one-hot
         return mean.astype(np.float32), std.astype(np.float32)
 
 
@@ -34,10 +34,10 @@ class Stats:
             setattr(self, f"{k}_mean", arrays[f"{k}_mean"])
             setattr(self, f"{k}_std", arrays[f"{k}_std"])
 
-    # -- construction -------------------------------------------------------
+    # -- построение ---------------------------------------------------------
     @classmethod
     def compute(cls, samples):
-        """`samples` yields raw dicts with x, e, y, mask (see dataset.build)."""
+        """`samples` выдаёт исходные словари с x, e, y, mask; см. dataset.build."""
         acc = {k: None for k in cls.KEYS}
         for smp in samples:
             for k, arr in (("node", smp["x"]), ("edge", smp["e"]), ("target", smp["y"][smp["mask"]])):
@@ -49,7 +49,7 @@ class Stats:
             out[f"{k}_mean"], out[f"{k}_std"] = acc[k].result()
         return cls(**out)
 
-    # -- apply --------------------------------------------------------------
+    # -- применение ---------------------------------------------------------
     def norm(self, kind, arr):
         return (arr - getattr(self, f"{kind}_mean")) / getattr(self, f"{kind}_std")
 
@@ -58,15 +58,16 @@ class Stats:
 
     @property
     def state_step_std(self):
-        """Raw std of the per-frame change of the 10 state features (target rate * dt).
-        Input noise is scaled by this, not by the state's own std: the noise must be
-        comparable to what changes in one step, otherwise the target degenerates into
-        'undo the noise' and the net stops learning physics."""
+        """Стандартное отклонение покадровых изменений 10 признаков состояния
+        в исходных единицах: целевая скорость изменения, умноженная на dt.
+        Шум на входе масштабируется по этой величине, а не по разбросу самого
+        состояния. Он должен быть сопоставим с изменением за один шаг, иначе
+        обучение сводится к устранению шума и сеть перестаёт изучать физику."""
         return self.target_std[3:] * self._dt
 
-    _dt = 0.02  # overwritten by whoever loads the stats with a config
+    _dt = 0.02  # переопределяется при загрузке статистик вместе с конфигурацией
 
-    # -- io -----------------------------------------------------------------
+    # -- ввод и вывод -------------------------------------------------------
     def as_dict(self):
         return {f"{k}_{m}": getattr(self, f"{k}_{m}") for k in self.KEYS for m in ("mean", "std")}
 

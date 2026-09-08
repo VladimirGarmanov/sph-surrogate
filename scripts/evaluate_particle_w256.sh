@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Evaluate trained server weights: full-soil rollout, timing, then all 16 errors.
+# Проверка обученных на сервере весов: прогноз всего грунта, замеры времени и ошибок всех 16 величин.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -13,7 +13,7 @@ if [[ ! -f data/phi30_c500.npy || ! -f data/phi30_c500_plate.npy || ! -f data/ph
   echo "The held-out phi30_c500 soil, plate and boundary arrays are required in data/." >&2
   exit 1
 fi
-# Refuse an old result directory before opening logs.
+# Отклоняем существующую папку результатов до открытия журналов.
 mkdir -p "$(dirname "$out_dir")"
 mkdir "$out_dir"
 

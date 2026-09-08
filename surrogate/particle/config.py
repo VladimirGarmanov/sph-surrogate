@@ -1,4 +1,4 @@
-"""Settings for particle-centred training, without spatial crops."""
+"""Настройки обучения по отдельным частицам без выделения пространственных областей."""
 from dataclasses import asdict, dataclass, fields
 
 
@@ -9,15 +9,15 @@ class Config:
     holdout: str = "phi30_c500,phi40_c2000,phi25_c5000,phi45_c0"
     dt: float = 0.02
     frame_stride: int = 1
-    history_frames: int = 8         # previous frames PLUS the current frame
+    history_frames: int = 8         # предыдущие кадры ПЛЮС текущий кадр
     neighbors: int = 256
-    batch: int = 32                  # target particles, each with its own neighbour histories
+    batch: int = 32                  # целевые частицы, каждая со своими историями соседей
     hidden: int = 256
     lr: float = 1e-4
     lr_decay_steps: int = 50_000
     steps: int = 20_000
     stats_frames: int = 40
-    val_samples: int = 16            # fixed batches for one-step validation
+    val_samples: int = 16            # фиксированные пакеты примеров для проверки прогноза на один шаг
     log_every: int = 100
     val_every: int = 1000
     seed: int = 0

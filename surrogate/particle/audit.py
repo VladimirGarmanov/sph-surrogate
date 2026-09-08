@@ -1,8 +1,6 @@
-"""Scan every stored value and soil transition; no network or GPU inference.
+"""Проверка всех сохранённых значений и переходов грунта без нейросети и вычислений на GPU.
 
-    python -m surrogate.particle.audit --data_dir data \
-        --experiment checkpoints/particle_history_k256_h8_w256 \
-        --out_dir checkpoints/particle-data-audit
+    python -m surrogate.particle.audit --data_dir data         --experiment checkpoints/particle_history_k256_h8_w256         --out_dir checkpoints/particle-data-audit
 """
 import argparse
 import csv
@@ -29,7 +27,7 @@ def optional(value):
 
 
 class Moments:
-    """Population moments over all finite values, with explicit exclusion counts."""
+    """Моменты по всем конечным значениям с явным подсчётом исключённых значений."""
     def __init__(self, size=16):
         self.count = np.zeros(size, np.int64)
         self.nan = np.zeros(size, np.int64)
@@ -75,7 +73,7 @@ class Moments:
 
 
 class Targets:
-    """The same eligible frame/row targets as ParticleDataset, without neighbours."""
+    """Те же допустимые целевые кадры и строки, что в ParticleDataset, но без соседей."""
     def __init__(self, scales):
         self.scales = scales
         self.moments = Moments()
@@ -94,8 +92,8 @@ class Targets:
         self.invalid += int((~complete).sum())
         if self.scales is None:
             return None, None, complete
-        # Delta / sigma is the ERROR of the unchanged-particle predictor.
-        # Its prediction and target use the same mean, which cancels out.
+        # Delta / sigma — ОШИБКА предиктора, оставляющего частицу без изменений.
+        # У предсказания и цели одинаковое среднее, которое сокращается при вычитании.
         normalized = np.asarray(delta, np.float64) / self.scales
         squared = np.where(finite, normalized, 0.) ** 2
         mse = np.where(complete, squared.mean(axis=1), np.nan)
@@ -138,7 +136,7 @@ class Targets:
 
 
 class Worst:
-    """Bounded exact top K, independently for each quantity and for pair MSE."""
+    """Точное хранение K наибольших значений отдельно для каждой величины и MSE каждой пары."""
     def __init__(self, limit):
         self.limit = limit
         self.heaps = {}
@@ -220,15 +218,15 @@ def scan_transitions(soil, plate, tag, split, cfg, scales, limit, frame_writer):
     worst = Worst(limit)
     first = cfg.history_frames * cfg.frame_stride
     stop = min(len(soil), len(plate)) - cfg.frame_stride if plate is not None else 0
-    spacing = .02  # fixed spatial resolution in NN_SPEC.md, not a corruption threshold
+    spacing = .02  # фиксированное пространственное разрешение из NN_SPEC.md, а не порог повреждения данных
     for frame in range(len(soil) - 1):
         current = soil[frame]
         following = soil[frame + 1]
         with np.errstate(invalid="ignore", over="ignore"):
             delta = following - current
         adjacent.add(delta)
-        # Endpoint velocities only approximate the integrated motion; this is
-        # an inspection heuristic, never a proof of wrong IDs or wrong physics.
+        # Скорости на концах интервала лишь приближённо описывают движение внутри него.
+        # Это диагностическая эвристика, а не доказательство ошибки в ID или физике.
         with np.errstate(invalid="ignore", over="ignore"):
             dx = following[:, :3].astype(np.float64) - current[:, :3]
             velocities = .5 * (following[:, 3:6].astype(np.float64) + current[:, 3:6])
@@ -368,7 +366,7 @@ def write_markdown(report, out_dir):
 
 
 def audit(data_dir, out_dir, cfg, scales=None, top=10, source_experiment=None):
-    """Inventory incomplete triplets too; scan all readable files without truncation."""
+    """Учитываем и неполные тройки файлов; проверяем все читаемые файлы без обрезания."""
     data_dir, out_dir = Path(data_dir), Path(out_dir)
     if not data_dir.is_dir():
         raise ValueError(f"data directory does not exist: {data_dir}")

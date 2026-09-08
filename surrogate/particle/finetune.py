@@ -1,8 +1,9 @@
-"""Fine-tune existing particle weights on refreshed rollouts of themselves.
+"""Дообучение существующих весов на обновляемых последовательных прогнозах самой модели.
 
-Each cycle collects a full-soil rollout without gradients, fits next-state
-corrections on its frozen histories, then evaluates an independent rollout.
-This is rollout replay, not backpropagation through all past time steps.
+Каждый цикл собирает прогноз всего грунта без градиентов, обучает поправки
+к следующему состоянию на зафиксированных историях и проверяет отдельный прогноз.
+Это повторное обучение по собранным траекториям, а не обратное распространение
+градиентов через все прошедшие шаги времени.
 """
 import argparse
 from dataclasses import asdict, dataclass, fields
@@ -39,7 +40,7 @@ class FinetuneConfig:
     val_tag: str = ""
     val_start_frame: int = -1
     val_steps: int = 10
-    active_speed: float = .001       # m/s, used only for validation selection
+    active_speed: float = .001       # м/с; используется только для отбора при валидации
     log_every: int = 50
     seed: int = 17
     device: str = "auto"
@@ -62,7 +63,7 @@ class FinetuneConfig:
 
 
 def trajectory_metrics(result, active_speed):
-    """Compare identical frame/ID pairs; active mask depends only on truth."""
+    """Сравниваем одинаковые пары кадр/ID; маска активных частиц зависит только от истинных данных."""
     reference = np.asarray(result["particle_reference"], np.float64)
     error = np.asarray(result["particle_predicted"], np.float64) - reference
     speed = np.linalg.norm(reference[..., 3:6], axis=-1)
@@ -98,7 +99,7 @@ def _save_npz(path, result):
 
 
 def run_finetuning(checkpoint, options, *, resume=False, source_path=""):
-    """Save/resume only at complete cycle boundaries: replay is then disposable."""
+    """Сохраняем и возобновляем только между полными циклами: собранные траектории тогда можно отбросить."""
     previous = checkpoint.get("finetune") if resume else None
     if resume and (checkpoint.get("training_mode") != TRAINING_MODE or previous is None):
         raise ValueError("--resume requires a rollout-replay checkpoint; use --ckpt for initial weights")
@@ -211,15 +212,15 @@ def run_finetuning(checkpoint, options, *, resume=False, source_path=""):
             log.flush()
 
         if not previous:
-            # Baseline collection itself may take minutes. Keep an initial
-            # resumable checkpoint before it, even if interrupted on frame one.
+            # Сбор исходного прогноза сам по себе может занять минуты. Заранее сохраняем
+            # начальную контрольную точку для возобновления даже после прерывания на первом кадре.
             save("model.pt", 0)
         if baseline is None:
             result, baseline = validate(0)
             best_score = baseline["score_m_s"]
             _save_npz(out / "validation_before.npz", result)
             record({"cycle": 0, "updates": 0, "split": label, "baseline": True, **baseline})
-            # Original weights are the first best: a worse first cycle cannot win.
+            # Исходные веса первыми считаются лучшими: первый цикл не заменит их худшим результатом.
             if independent:
                 _save_npz(out / "validation_best.npz", result)
                 save("best.pt", 0)

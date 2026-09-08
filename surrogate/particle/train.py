@@ -1,4 +1,4 @@
-"""Train histories of one particle + K neighbours -> 16 changes over one frame.
+"""Обучение по историям одной частицы и K соседей -> 16 изменений за один кадр.
 
     python -m surrogate.particle.train --data_dir data --neighbors 256 --steps 20000
 """

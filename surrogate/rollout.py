@@ -1,10 +1,10 @@
-"""Autoregressive rollout of a trained model against the solver.
+"""Последовательный прогноз обученной модели с сопоставлением с решателем.
 
     python -m surrogate.rollout --ckpt checkpoints/gns/best.pt --tag phi30_c500 --plot
 
-Prints: per-step position RMSE, steps until divergence, plate pressure curve vs
-reference, wall-clock per model-second for the net and (if runs_soil.csv is
-present) for the solver.
+Выводит RMSE координат на каждом шаге, число шагов до расхождения, сравнение
+кривой давления под штампом с эталоном и затраты реального времени на секунду
+модельного времени для сети, а при наличии runs_soil.csv — и для решателя.
 """
 import argparse
 import time
@@ -31,38 +31,40 @@ def load_checkpoint(path, device):
 
 
 def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
-    """Mean normal stress of soil in a thin layer right under the plate face.
+    """Среднее нормальное напряжение грунта в тонком слое сразу под поверхностью штампа.
 
-    This is the original, untuned formula (radius = plate_radius, slab = 2x
-    spacing, plain mean). Two attempts to improve it are recorded here because
-    both backfired, and the reason is the actual finding worth keeping:
+    Это исходная формула без подбора параметров: radius = plate_radius,
+    толщина слоя — 2 расстояния между частицами, усреднение обычное.
+    Здесь описаны две неудачные попытки улучшить её и причины неудач.
 
-    scripts/calibrate_pressure.py sweeps formula variants against
-    pressure_sinkage.csv using GROUND-TRUTH frames only (no network), and by that
-    measure this formula is the worst of three tried -- it disagrees with the
-    solver's reference curve by ~19-21% even with perfect particle data, while a
-    wider+weighted variant scored 4% and a thicker-slab mean scored ~8%.
+    scripts/calibrate_pressure.py сравнивает варианты формулы с
+    pressure_sinkage.csv исключительно на истинных кадрах решателя,
+    без нейросети. По этой проверке исходная формула оказалась худшей
+    из трёх: ошибка относительно эталонной кривой ~19–21% даже при идеальных
+    данных частиц. Вариант с большим радиусом и взвешиванием дал 4%,
+    а усреднение по более толстому слою — ~8%.
 
-    But graded against what this function is actually used for -- the network's
-    own (imperfect) rollout, not ground truth -- the ranking inverted completely:
-    this "worst" formula gave 11%/17% error, the "best" ground-truth formula gave
-    79%/89%, and the middle one gave ~35%/34%. The wider/weighted formula divides
-    by a FIXED plate area regardless of how many particles the disk actually
-    catches, so it swings hard once the network's position error (largest exactly
-    under the plate, see zone_report) shifts which particles fall inside it. The
-    thicker-slab mean reaches deeper into the soil, where the network's own stress
-    error apparently compounds differently across the 200-step rollout. Neither
-    failure was visible from ground-truth accuracy alone.
+    Но на последовательном прогнозе самой сети, где данные уже содержат
+    ошибки, порядок полностью поменялся. «Худшая» формула дала ошибки
+    11%/17%, «лучшая» по истинным данным — 79%/89%, а средняя — ~35%/34%.
+    Вариант с большим радиусом и взвешиванием делит результат на ФИКСИРОВАННУЮ
+    площадь штампа независимо от числа частиц, попавших в диск. Поэтому он
+    сильно реагирует на ошибку координат сети: она максимальна как раз под
+    штампом, см. zone_report, и меняет состав частиц внутри диска.
+    Более толстый слой захватывает глубже лежащий грунт, где ошибка
+    напряжений сети, по-видимому, иначе накапливается за 200 шагов прогноза.
+    Проверка только на истинных данных не выявила ни одной из этих проблем.
 
-    Kept as originally written, not because it is provably correct -- it likely
-    works only because its own bias happens to partly cancel the network's rollout
-    error -- but because it is the only one of three actually validated against
-    real model output rather than against a ground truth it will never see in use.
-    Any future change to this formula needs a rollout comparison, not just a
-    ground-truth sweep, before being trusted.
+    Исходная формула сохранена не из-за доказанной правильности: вероятно,
+    её собственное смещение лишь частично компенсирует ошибку прогноза сети.
+    Однако из трёх вариантов только она показала приемлемый результат
+    на реальном выходе модели, а не только на истинных данных, недоступных
+    при её применении. Любое будущее изменение этой формулы нужно проверять
+    на последовательном прогнозе, а не только перебором по истинным кадрам.
 
-    Sign convention of p33 in Chrono CRM was checked with --calibrate against
-    pressure_sinkage.csv; if it ever looks anti-correlated on new data, flip the sign here.
+    Соглашение о знаке p33 в Chrono CRM проверено через --calibrate
+    по pressure_sinkage.csv. Если на новых данных возникнет обратная
+    корреляция, знак следует поменять здесь.
     """
     center = plate_pos[:, :2].mean(0)
     z_bottom = plate_pos[:, 2].min()
@@ -74,8 +76,9 @@ def plate_pressure(soil_pos, soil_p33, plate_pos, spacing, plate_radius=0.15):
 
 
 def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
-    """Start from frames k and k+1, predict soil for frames k+1..T-k.
-    Plate and wall positions/states come from the data at every step (their motion is known)."""
+    """Начать с кадров k и k+1, предсказывать грунт для кадров k+1..T-k.
+    Координаты и состояния штампа и стенки на каждом шаге берутся из данных:
+    их движение известно."""
     k = cfg.frame_stride
     dt = cfg.dt * k
     T = run.n_frames if n_steps is None else min(run.n_frames, n_steps + 2)
@@ -110,7 +113,7 @@ def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
             pos_next[soil] = 2 * pos_t[soil] - pos_prev[soil] + acc[soil] * dt ** 2
             state[soil] += rate[soil] * dt
 
-            # static markers: take the next frame from the data
+            # неподвижные маркеры: берём следующий кадр из данных
             f_next = run.frame(t + k)
             pos_next[~soil] = f_next[~soil, POS]
             state[~soil] = f_next[~soil, STATE]
@@ -124,7 +127,7 @@ def rollout(model, cfg, stats, run, device, n_steps=None, verbose=True):
                 print(f"  step {t:3d}/{T - 2}  rmse={rmse[t + k] * 1e3:.3f} mm  {step_wall[-1] * 1e3:.0f} ms")
             pos_prev, pos_t = pos_t, pos_next
 
-    frames = np.arange(0, T - k + 1, k)          # frames actually filled: 0, k, 2k, ...
+    frames = np.arange(0, T - k + 1, k)          # фактически заполненные кадры: 0, k, 2k, ...
     return {"pos": pred_pos, "state": pred_state, "rmse": rmse, "frames": frames,
             "step_wall": np.array(step_wall)}
 
@@ -133,14 +136,14 @@ STATE_NAMES = ["rho", "p11", "p22", "p33", "shear12", "shear13", "shear23", "pc"
 
 
 def zone_report(run, pred, cfg, plate_radius=0.15):
-    """Where is the error: under the plate or in soil that should be at rest?
-    Prints RMSE, the mean error vector (a drift shows up as a non-zero mean), and
-    percentiles of the per-particle error -- a single mean can hide "almost every
-    particle is fine, a handful are wildly off" behind a merely-large number."""
+    """Где сосредоточена ошибка: под штампом или в грунте, который должен покоиться?
+    Выводит RMSE, средний вектор ошибки — ненулевое среднее показывает дрейф —
+    и процентили ошибки по частицам. Одно среднее может скрывать ситуацию,
+    когда почти все частицы предсказаны хорошо, а несколько сильно отклонились."""
     T = int(pred["frames"][-1])
     gt = np.asarray(run.soil[T][:, POS])
     err = pred["pos"][T] - gt
-    dist = np.linalg.norm(err, axis=1) * 1e3   # per-particle position error, mm
+    dist = np.linalg.norm(err, axis=1) * 1e3   # ошибка координат каждой частицы, мм
     plate0 = np.asarray(run.plate[0][:, POS])
     center, z_top = plate0[:, :2].mean(0), plate0[:, 2].min()
     lateral = np.linalg.norm(gt[:, :2] - center, axis=1)
@@ -157,10 +160,10 @@ def zone_report(run, pred, cfg, plate_radius=0.15):
 
 
 def state_report(run, pred, cfg):
-    """Per-particle error for each of the 10 predicted state features separately
-    (density, the 6 stress components, pc/Ev/Sv), instead of the training loop's
-    4 coarse groups (acc/rho/stress/plast) which hide which specific quantity is
-    actually well or badly predicted."""
+    """Ошибка по частицам отдельно для каждого из 10 предсказываемых признаков:
+    плотности, 6 компонент напряжения и pc/Ev/Sv. Четыре укрупнённые группы
+    цикла обучения (acc/rho/stress/plast) скрывают, какие именно величины
+    предсказываются хорошо, а какие плохо."""
     T = int(pred["frames"][-1])
     gt_state = np.asarray(run.soil[T][:, STATE])
     pred_state = pred["state"][T]
@@ -174,7 +177,7 @@ def state_report(run, pred, cfg):
 
 
 def pressure_curves(run, pred, cfg):
-    """(t, p_pred, p_gt_estimate, p_reference) per frame."""
+    """Кортеж (t, p_pred, p_gt_estimate, p_reference) для каждого кадра."""
     frames = pred["frames"]
     t = frames * cfg.dt
     p_pred, p_gt = np.full(len(frames), np.nan), np.full(len(frames), np.nan)
@@ -222,9 +225,9 @@ def main():
 
     pred = rollout(model, cfg, stats, run, device, n_steps=args.steps)
 
-    # -- divergence ---------------------------------------------------------
+    # -- расхождение прогноза ------------------------------------------------
     frames = pred["frames"]
-    rmse = pred["rmse"][frames]                # one value per network step
+    rmse = pred["rmse"][frames]                # одно значение на шаг сети
     over = np.flatnonzero(rmse > thr)
     stable = int(over[0]) - 1 if len(over) else len(rmse) - 1
     print(f"\nstable steps (rmse < {thr * 1e3:.1f} mm): {stable} of {len(rmse) - 1}  (stride {cfg.frame_stride}, {len(rmse) - 1} steps cover frames 0..{frames[-1]})")
@@ -232,15 +235,15 @@ def main():
     zone_report(run, pred, cfg)
     state_report(run, pred, cfg)
 
-    # -- plate pressure -----------------------------------------------------
+    # -- давление под штампом -----------------------------------------------
     t, p_pred, p_gt, p_ref = pressure_curves(run, pred, cfg)
     ok = ~np.isnan(p_pred) & ~np.isnan(p_gt)
     print(f"plate pressure, net vs particle estimate on ground truth: rel. error {np.abs(p_pred[ok] - p_gt[ok]).mean() / (np.abs(p_gt[ok]).mean() + 1e-9):.2%}")
     if p_ref is not None:
         print(f"plate pressure, net vs solver reference:                 rel. error {np.abs(p_pred[ok] - p_ref[ok]).mean() / (np.abs(p_ref[ok]).mean() + 1e-9):.2%}")
 
-    # -- speed --------------------------------------------------------------
-    wall = pred["step_wall"][1:].mean()        # skip warm-up step
+    # -- скорость расчёта ---------------------------------------------------
+    wall = pred["step_wall"][1:].mean()        # пропускаем первый шаг, используемый для прогрева
     net_cost = wall / (cfg.dt * cfg.frame_stride)
     print(f"\nnet: {wall * 1e3:.0f} ms per step incl. graph build  ->  {net_cost:.1f} wall-s per model-s")
     solver = solver_wall_seconds(run.dir, run.tag)

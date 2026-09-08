@@ -1,8 +1,9 @@
-"""One-step training.
+"""Обучение предсказанию на один шаг.
 
     python -m surrogate.train --data_dir data --steps 20000 --out_dir checkpoints/gns
 
-Every Config field is a CLI flag. Writes config.json, stats.npz, model.pt to out_dir.
+Каждое поле Config доступно как флаг командной строки.
+Файлы config.json, stats.npz и model.pt записываются в out_dir.
 """
 import argparse
 import time
@@ -35,7 +36,7 @@ def parse_args():
 
 
 def group_losses(pred, y):
-    """Normalised MSE per output group, for logging."""
+    """Нормализованная MSE по группам выходных величин для журнала обучения."""
     return {k: ((pred[:, s] - y[:, s]) ** 2).mean().item() for k, s in GROUPS.items()}
 
 
@@ -74,7 +75,7 @@ def main():
     val_runs = [r for r in runs if r.tag in cfg.holdout_tags]
     print(f"device={device}  train={[r.tag for r in train_runs]}  holdout={[r.tag for r in val_runs]}")
 
-    # -- normalisation ------------------------------------------------------
+    # -- нормализация -------------------------------------------------------
     stats_path = out / "stats.npz"
     if stats_path.exists():
         stats = Stats.load(stats_path)
@@ -87,14 +88,14 @@ def main():
         stats.save(stats_path)
         print(f"stats from {cfg.stats_frames} frames in {time.time() - t0:.0f}s -> {stats_path}")
 
-    # -- data ---------------------------------------------------------------
+    # -- данные -------------------------------------------------------------
     train_ds = FrameDataset(train_runs, cfg, stats, train=True, seed=cfg.seed)
     loader = DataLoader(train_ds, batch_size=cfg.batch, shuffle=True, collate_fn=collate,
                         num_workers=cfg.workers, persistent_workers=cfg.workers > 0, drop_last=True)
     val_ds = FrameDataset(val_runs or train_runs, cfg, stats, train=False, seed=cfg.seed + 1)
     val_samples = [collate([val_ds[i]]) for i in rng.choice(len(val_ds), size=min(cfg.val_samples, len(val_ds)), replace=False)]
 
-    # -- model --------------------------------------------------------------
+    # -- модель -------------------------------------------------------------
     model = GNS(cfg.hidden, cfg.layers).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.1 ** (s / cfg.lr_decay_steps))
@@ -104,7 +105,7 @@ def main():
         model.load_state_dict(ck["model"])
         opt.load_state_dict(ck["opt"])
         step = ck["step"]
-        sched.last_epoch = step - 1   # LambdaLR has no state_dict entry for this; must set manually
+        sched.last_epoch = step - 1   # восстанавливаем номер шага планировщика LambdaLR вручную
         sched.step()
         print(f"resumed from {args.resume} at step {step}, lr={sched.get_last_lr()[0]:.1e}")
     print(f"params: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
@@ -113,7 +114,7 @@ def main():
         torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "step": step,
                     "config": cfg.to_dict(), "stats": {k: v.tolist() for k, v in stats.as_dict().items()}}, out / name)
 
-    # -- loop ---------------------------------------------------------------
+    # -- цикл обучения ------------------------------------------------------
     model.train()
     t0 = time.time()
     running = {k: 0.0 for k in GROUPS}

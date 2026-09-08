@@ -1,1 +1,1 @@
-"""GNS-style neural surrogate for Chrono::FSI CRM soil (bevameter plate sinkage)."""
+"""Нейросетевой суррогат в стиле GNS для грунта Chrono::FSI CRM: погружение штампа беваметра."""

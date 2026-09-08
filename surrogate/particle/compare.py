@@ -1,8 +1,7 @@
-"""Read particle predictions and solver values from a result, without model weights.
+"""Чтение предсказаний частиц и значений решателя из результата без весов модели.
 
     python -m surrogate.particle.compare --result checkpoints/comparison.npz
-    python -m surrogate.particle.compare --result checkpoints/comparison.npz \
-        --particle_ids 123 --csv checkpoints/particle_123.csv
+    python -m surrogate.particle.compare --result checkpoints/comparison.npz         --particle_ids 123 --csv checkpoints/particle_123.csv
 """
 import argparse
 import csv
@@ -13,7 +12,7 @@ import numpy as np
 
 
 def load_comparison(path, frame=None, particle_ids=None):
-    """Select by original solver frame/particle ID, never by nearest position."""
+    """Выбор по исходным ID кадров и частиц решателя, без сопоставления по ближайшим координатам."""
     keys = ("particle_predicted", "particle_reference", "particle_frames", "particle_t",
             "particle_ids", "feature_names", "feature_units")
     with np.load(path, allow_pickle=False) as archive:
@@ -56,7 +55,7 @@ def load_comparison(path, frame=None, particle_ids=None):
 
 
 def error_statistics(error):
-    """Physical errors; no division by near-zero reference values."""
+    """Ошибки в физических единицах без деления на близкие к нулю эталонные значения."""
     absolute = np.abs(error)
     p50, p95, p99 = np.percentile(absolute, [50, 95, 99])
     return {"rmse": float(np.sqrt(np.mean(error ** 2))),
@@ -75,7 +74,7 @@ def summarize(data):
     displacement_error = predicted[..., columns].astype(np.float64) - reference[..., columns]
     position_error = np.linalg.norm(displacement_error, axis=-1)
     position = error_statistics(position_error)
-    # Directional bias has no meaning for a vector norm.
+    # Для нормы вектора направленное смещение не имеет смысла.
     position.pop("bias")
     worst = np.argsort(position_error.ravel())[-min(10, position_error.size):][::-1]
     worst_rows = []
@@ -93,7 +92,7 @@ def summarize(data):
 
 
 def write_csv(path, data):
-    """One row = one frame, particle ID and physical quantity."""
+    """Одна строка — один кадр, ID частицы и физическая величина."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as stream:

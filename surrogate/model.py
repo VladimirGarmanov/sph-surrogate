@@ -1,4 +1,4 @@
-"""Encode - process - decode graph network (Sanchez-Gonzalez et al. 2020)."""
+"""Графовая сеть: кодирование, обработка, декодирование (Sanchez-Gonzalez и др., 2020)."""
 import torch
 import torch.nn as nn
 
@@ -13,7 +13,7 @@ def mlp(n_in, hidden, n_out, layer_norm=True):
 
 
 class InteractionLayer(nn.Module):
-    """One round of message passing with residual connections."""
+    """Один раунд передачи сообщений с остаточными связями."""
 
     def __init__(self, hidden):
         super().__init__()

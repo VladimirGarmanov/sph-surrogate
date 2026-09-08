@@ -1,4 +1,4 @@
-"""Recovery labels, causality, baseline protection and cycle-boundary resume."""
+"""Цели восстановления, причинность, защита исходного результата и возобновление между циклами."""
 from contextlib import redirect_stdout
 from dataclasses import replace
 import io
@@ -48,7 +48,7 @@ def write_runs(folder):
         plate = np.zeros((9, 1, 16), np.float32)
         plate[:, :, 2] = -.00001 * np.arange(9)[:, None]
         plate[..., 5] = -.0005
-        plate[..., 9] = -99999  # forbidden boundary response
+        plate[..., 9] = -99999  # отклик границы, который нельзя передавать на вход модели
         wall = np.zeros((1, 16), np.float32)
         wall[:, :3] = [-.02, 0., -.02]
         wall[:, 9] = -77777
@@ -88,7 +88,7 @@ class ReplayTests(unittest.TestCase):
     def test_recovery_target_subtracts_predicted_current_and_uses_predicted_neighbours(self):
         replay, result = self.fixture()
         sample = replay.build(1, [0])
-        self.assertAlmostEqual(float(sample["y"][0, 0]), 992.)  # 999 - 7, not 999 - 2
+        self.assertAlmostEqual(float(sample["y"][0, 0]), 992.)  # 999 - 7, а не 999 - 2
         self.assertAlmostEqual(float(sample["y"][0, 0] + replay.history[2, 0, 0]), 999.)
         self.assertAlmostEqual(float(sample["x"][0, -1, 0]), 11.)
         self.assertAlmostEqual(float(sample["neighbors"][0, 0, -1, 0]), 22.)
@@ -97,7 +97,7 @@ class ReplayTests(unittest.TestCase):
         frozen = replay.history.copy()
         result["particle_predicted"] += 900
         np.testing.assert_array_equal(replay.history, frozen)
-        # Every random replay input contains a model-generated current state.
+        # Каждый случайный вход из собранного прогноза содержит текущее состояние, созданное моделью.
         for _ in range(8):
             self.assertIn(float(replay.sample()["x"][0, -1, 0]), [11., 22., 33.])
 
@@ -185,7 +185,7 @@ class FinetuneIntegrationTests(unittest.TestCase):
             root = Path(folder)
             write_runs(root / "data")
             original = self.checkpoint()
-            scores = iter([.001, .1, .002])  # baseline, training collection, candidate validation
+            scores = iter([.001, .1, .002])  # исходный результат, сбор обучающей траектории, проверка кандидата
 
             def controlled(result, threshold):
                 metrics = trajectory_metrics(result, threshold)

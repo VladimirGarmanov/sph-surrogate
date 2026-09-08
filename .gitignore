@@ -1,16 +1,16 @@
-# Keys — never commit
+# Ключи: никогда не добавлять в коммиты
 *.pem
 
-# Data and training outputs
+# Данные и результаты обучения
 data/
 *.npy
 checkpoints/
 runs/
 
-# Python
+# Файлы Python
 .venv/
 __pycache__/
 *.pyc
 
-# IDE
+# Среда разработки
 .idea/

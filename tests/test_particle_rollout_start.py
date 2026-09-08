@@ -1,4 +1,4 @@
-"""Warm starts keep original frame indices and use future soil only for scoring."""
+"""Начальные истории сохраняют исходные индексы кадров; будущий грунт используется только для оценки."""
 import unittest
 from unittest.mock import patch
 

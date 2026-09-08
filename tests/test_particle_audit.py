@@ -1,4 +1,4 @@
-"""Whole-array audit: exact tails, corrupt inputs, target windows and holdout isolation."""
+"""Проверка полных массивов: точные экстремумы, повреждённые входы, целевые окна и изоляция отложенных запусков."""
 from contextlib import redirect_stdout
 import csv
 import io

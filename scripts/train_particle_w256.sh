@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Run from the server's existing Python environment with CUDA and all 25 runs.
+# Запуск из существующего окружения Python на сервере с CUDA и всеми 25 запусками.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 out_dir="checkpoints/particle_history_k256_h8_w256"
 
 mkdir -p checkpoints
-# Refuse an existing experiment before tee can overwrite its training log.
+# Не допускаем повторный запуск в прежней папке, чтобы tee не перезаписал журнал обучения.
 mkdir "$out_dir"
 
 python -u -m surrogate.particle.train \

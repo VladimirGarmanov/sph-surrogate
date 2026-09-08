@@ -1,4 +1,4 @@
-"""GRU histories + symmetric neighbour pooling -> one particle's 16 deltas."""
+"""Истории через GRU и симметричное объединение соседей -> 16 изменений одной частицы."""
 import torch
 import torch.nn as nn
 
@@ -7,7 +7,7 @@ from .data import N_EDGE, N_INPUT, N_OUTPUT
 
 
 class ParticleNet(nn.Module):
-    """No neighbour-to-neighbour propagation and no dependence on list order."""
+    """Без передачи сообщений между соседями; результат не зависит от порядка соседей в списке."""
     def __init__(self, hidden=256):
         super().__init__()
         self.center_encoder = mlp(N_INPUT, hidden, hidden)
@@ -15,18 +15,18 @@ class ParticleNet(nn.Module):
         self.history = nn.GRU(hidden, hidden, batch_first=True)
         self.message = mlp(2 * hidden, hidden, hidden)
         self.decoder = mlp(3 * hidden, hidden, N_OUTPUT, layer_norm=False)
-        # Initially predict the training mean delta after denormalization.
-        # Exactly constant zero targets start correct, rather than drifting.
+        # Изначально после обратной нормализации предсказывается среднее изменение обучающих данных.
+        # Строго постоянные нулевые цели сразу предсказываются верно и не дрейфуют.
         nn.init.zeros_(self.decoder[-1].weight)
         nn.init.zeros_(self.decoder[-1].bias)
 
     def encode_history(self, sequence, encoder):
-        """Read oldest to newest; reset hidden state for each sampled window."""
+        """Читаем от старых кадров к новым; скрытое состояние сбрасывается для каждого выбранного окна."""
         _, last_hidden = self.history(encoder(sequence))
         return last_hidden[-1]
 
     def forward(self, x, neighbors, e, valid):
-        # x: (B,H,18); neighbours: (B,K,H,18); edges: (B,K,H,7).
+        # Формы: x — (B,H,18); соседи — (B,K,H,18); рёбра — (B,K,H,7).
         center = self.encode_history(x, self.center_encoder)
         b, k, h, _ = neighbors.shape
         sequences = torch.cat([neighbors, e], dim=-1).reshape(b * k, h, N_INPUT + N_EDGE)

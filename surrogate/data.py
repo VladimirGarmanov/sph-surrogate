@@ -1,4 +1,4 @@
-"""Loading packed runs. Column layout matches NN_SPEC.md."""
+"""Загрузка упакованных запусков. Порядок столбцов соответствует NN_SPEC.md."""
 import re
 from functools import cached_property
 from pathlib import Path
@@ -8,13 +8,13 @@ import pandas as pd
 
 N_FEAT = 16
 POS = slice(0, 3)
-VEL = slice(3, 6)        # solver velocity: ParticleNet uses it; legacy GNS derives velocity from positions
+VEL = slice(3, 6)        # скорость из решателя: её использует ParticleNet; прежняя GNS вычисляет скорость по координатам
 RHO = 6
 STRESS = slice(7, 13)
-PLAST = slice(13, 16)    # pc, Ev, Sv
-STATE = slice(6, 16)     # rho + 6 stress + pc/Ev/Sv: everything with history
+PLAST = slice(13, 16)    # параметры пластичности: pc, Ev, Sv
+STATE = slice(6, 16)     # rho + 6 компонент напряжения + pc/Ev/Sv: все величины с историей
 N_STATE = 10
-P33 = 9                  # normal stress along z, used for plate pressure
+P33 = 9                  # нормальное напряжение вдоль z для расчёта давления под штампом
 
 SOIL, WALL, PLATE = 0, 1, 2
 N_TYPES = 3
@@ -30,15 +30,16 @@ def parse_tag(tag):
 
 
 class Run:
-    """One simulation. Arrays are memory-mapped lazily so 25 runs cost nothing
-    until touched, and the object stays picklable for DataLoader workers."""
+    """Одна симуляция. Массивы лениво отображаются из файлов в память:
+    данные 25 запусков не загружаются до обращения к ним. Объект при этом
+    остаётся пригодным для сериализации при передаче рабочим процессам DataLoader."""
 
     def __init__(self, data_dir, tag):
         self.dir = Path(data_dir)
         self.tag = tag
         self.phi_deg, self.cohesion = parse_tag(tag)
 
-    # -- lazy arrays --------------------------------------------------------
+    # -- ленивая загрузка массивов ------------------------------------------
     @cached_property
     def soil(self):
         return np.load(self.dir / f"{self.tag}.npy", mmap_mode="r")
@@ -52,14 +53,14 @@ class Run:
         return np.load(self.dir / f"{self.tag}_boundary.npy", mmap_mode="r")
 
     def __getstate__(self):
-        # drop memmaps before pickling, workers reopen them
+        # убираем отображения файлов перед сериализацией; рабочие процессы откроют их заново
         return {k: v for k, v in self.__dict__.items()
                 if k not in ("soil", "plate", "boundary")}
 
-    # -- shapes -------------------------------------------------------------
+    # -- размеры массивов ---------------------------------------------------
     @property
     def n_frames(self):
-        return min(len(self.soil), len(self.plate))   # guard against the 201-frame run
+        return min(len(self.soil), len(self.plate))   # защита от несовпадения длин в запуске с 201 кадром
 
     @property
     def n_soil(self):
@@ -79,7 +80,7 @@ class Run:
 
     @cached_property
     def types(self):
-        """Node order everywhere: soil, plate, wall."""
+        """Порядок узлов везде одинаков: грунт, штамп, стенка."""
         return np.concatenate([
             np.full(self.n_soil, SOIL, np.int64),
             np.full(self.n_plate, PLATE, np.int64),
@@ -87,17 +88,17 @@ class Run:
         ])
 
     def frame(self, t):
-        """(n_nodes, 16) float32 for frame t, in the order soil, plate, wall."""
+        """Массив float32 формы (n_nodes, 16) для кадра t; порядок: грунт, штамп, стенка."""
         return np.concatenate([
             np.asarray(self.soil[t], np.float32),
             np.asarray(self.plate[t], np.float32),
             np.asarray(self.boundary, np.float32),
         ])
 
-    # -- reference curve ----------------------------------------------------
+    # -- эталонная кривая ----------------------------------------------------
     @cached_property
     def reference(self):
-        """pressure_sinkage.csv from the solver, or None if not downloaded."""
+        """Файл pressure_sinkage.csv из решателя или None, если он не загружен."""
         candidates = [
             self.dir / self.tag / "pressure_sinkage.csv",
             self.dir / f"{self.tag}_pressure_sinkage.csv",
@@ -113,7 +114,7 @@ class Run:
 
 
 def discover_runs(data_dir):
-    """All tags with a soil array present, sorted."""
+    """Отсортированные имена всех запусков, для которых есть массив грунта."""
     data_dir = Path(data_dir)
     tags = []
     for p in data_dir.glob("*.npy"):
@@ -126,7 +127,7 @@ def discover_runs(data_dir):
 
 
 def solver_wall_seconds(data_dir, tag):
-    """wall_seconds from runs_soil.csv for this tag, or None."""
+    """Значение wall_seconds из runs_soil.csv для данного запуска или None."""
     path = Path(data_dir) / "runs_soil.csv"
     if not path.exists():
         return None

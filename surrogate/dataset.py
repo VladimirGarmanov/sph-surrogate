@@ -1,4 +1,4 @@
-"""torch Dataset: (run, frame) -> one graph with noisy inputs and finite-difference targets."""
+"""Dataset для torch: (запуск, кадр) -> граф с шумом на входе и целями из конечных разностей."""
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -8,7 +8,7 @@ from .graph import radius_edges, node_features, edge_features, targets
 
 
 class FrameDataset(Dataset):
-    """One item = one frame t of one run (needs t-1 and t+1), optionally cropped."""
+    """Один элемент — кадр t одного запуска; нужны t-1 и t+1. Область можно ограничить."""
 
     def __init__(self, runs, cfg, stats=None, train=True, seed=0):
         self.runs = list(runs)
@@ -25,9 +25,10 @@ class FrameDataset(Dataset):
     def __len__(self):
         return len(self.index)
 
-    # ------------------------------------------------------------------ raw
+    # ------------------------------------------------------- исходные данные
     def build(self, run, t, noise=False, crop=False, rng=None):
-        """Raw numpy sample. Kept separate from __getitem__ so stats and rollout can reuse it."""
+        """Исходный пример в массивах numpy. Отделён от __getitem__,
+        чтобы его можно было использовать для расчёта статистик и последовательного прогноза."""
         cfg = self.cfg
         rng = rng or self.rng
         k = cfg.frame_stride if cfg.frame_stride > 0 else 1
@@ -69,18 +70,18 @@ class FrameDataset(Dataset):
         if rng.random() < cfg.crop_near_plate:
             plate = np.flatnonzero(types == PLATE)
             center = pos[rng.choice(plate)].copy()
-            center[2] -= 0.5 * cfg.crop_half           # box mostly below the plate
+            center[2] -= 0.5 * cfg.crop_half           # большая часть области находится под штампом
         else:
             center = pos[rng.choice(np.flatnonzero(types == SOIL))]
         d = np.abs(pos - center).max(axis=1)
         idx = np.flatnonzero(d <= cfg.crop_half)
         inner = d[idx] <= cfg.crop_half - cfg.crop_halo
         loss_mask = inner & (types[idx] == SOIL)
-        if not loss_mask.any():                         # tiny crop at a corner: use everything
+        if not loss_mask.any():                         # если область в углу слишком мала, используем все частицы
             loss_mask = types[idx] == SOIL
         return idx, loss_mask
 
-    # ---------------------------------------------------------------- torch
+    # -------------------------------------------------------- тензоры torch
     def __getitem__(self, i):
         ri, t = self.index[i]
         rng = np.random.default_rng(self.rng.integers(1 << 31) + i)
@@ -103,7 +104,7 @@ def to_tensors(smp, stats=None):
 
 
 def collate(items):
-    """Concatenate graphs into one big disconnected graph (offset edge indices)."""
+    """Объединить графы в один большой несвязный граф, сдвинув индексы рёбер."""
     out = {k: [] for k in items[0]}
     offset = 0
     for it in items:
@@ -114,7 +115,7 @@ def collate(items):
 
 
 def sample_frames(runs, n, rng, stride=1):
-    """n random (run, frame) pairs, frames uniformly over the middle of each run."""
+    """n случайных пар (запуск, кадр); кадры равномерно выбираются без крайних кадров каждого запуска."""
     out = []
     for _ in range(n):
         run = runs[rng.integers(len(runs))]

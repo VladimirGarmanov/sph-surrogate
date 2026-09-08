@@ -139,6 +139,23 @@ bash scripts/evaluate_particle_w256.sh
 Он замеряет поиск соседей с проверкой совпадения ID, запускает 10 кадров
 на всех частицах и сохраняет сравнение 16 величин вместе с профилем времени.
 [Инструкция и связь с поиском Project Chrono](docs/PARTICLE_MODEL_EVALUATION_RU.md).
+
+Чтобы проверить именно одношаговую точность без накопления собственных ошибок,
+добавь к той же команде rollout флаг `--teacher_forced`:
+
+```bash
+python -u -m surrogate.particle.rollout \
+  --ckpt checkpoints/particle_history_k256_h8_w256/best.pt \
+  --data_dir data --tag phi30_c500 --start_frame 8 --steps 10 \
+  --batch 32 --device cuda --neighbor_workers 4 --teacher_forced \
+  --save_particles --plot \
+  --out checkpoints/particle-eval-w256/teacher_forced.npz
+```
+
+В этом режиме перед каждым предсказанием используются истинные кадры до
+текущего момента. Следующий кадр остаётся скрытым и используется только для
+сравнения. Поэтому результат показывает ошибку одного шага, а не устойчивость
+полной авторегрессионной прокрутки.
 Поиск выполняется крупными блоками, независимо от GPU-пакета; флаг
 `--neighbor_workers` у rollout задаёт число потоков CPU (по умолчанию 4).
 

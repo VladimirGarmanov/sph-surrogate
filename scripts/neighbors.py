@@ -1,9 +1,9 @@
-"""Step 1 of NN_SPEC: mean neighbour count for a few radii.
+"""Шаг 1 из NN_SPEC: среднее число соседей для нескольких радиусов.
 
     python scripts/neighbors.py --tag phi35_c1000 --frame 100 --radii 0.03 0.04 0.05 0.06
 
-Target is 30-60 neighbours for a soil particle. The `all` column counts soil +
-plate + wall markers (what the net will actually see), `soil` counts soil only.
+Ориентир — 30–60 соседей у частицы грунта. Столбец `all` учитывает маркеры
+грунта, штампа и стенки, то есть всё, что увидит сеть; `soil` — только грунт.
 """
 import argparse
 import sys

@@ -1,4 +1,4 @@
-"""Optional wall-time measurements, with completed CUDA work at stage boundaries."""
+"""Необязательные замеры реального времени с ожиданием завершения операций CUDA на границах этапов."""
 from contextlib import contextmanager, nullcontext
 import time
 

@@ -1,46 +1,46 @@
-"""All knobs in one place. Every field can be overridden from the train CLI."""
+"""Все настройки в одном месте. Каждое поле можно переопределить через командную строку обучения."""
 from dataclasses import dataclass, asdict, fields
 import json
 
 
 @dataclass
 class Config:
-    # ---- data -------------------------------------------------------------
+    # ---- данные -----------------------------------------------------------
     data_dir: str = "data"
-    dt: float = 0.02            # seconds between frames
-    spacing: float = 0.02       # SPH particle spacing [m]
-    radius: float = 0.04        # neighbour radius [m]; tune with scripts/neighbors.py
-    holdout: str = "phi30_c500,phi40_c2000,phi25_c5000,phi45_c0"  # never trained on
-    frame_stride: int = 1  # use every k-th frame; effective dt = k * dt
+    dt: float = 0.02            # интервал между кадрами, с
+    spacing: float = 0.02       # расстояние между частицами SPH, м
+    radius: float = 0.04        # радиус поиска соседей, м; подобрать через scripts/neighbors.py
+    holdout: str = "phi30_c500,phi40_c2000,phi25_c5000,phi45_c0"  # запуски, которые никогда не используются для обучения
+    frame_stride: int = 1  # брать каждый k-й кадр; эффективный dt = k * dt
 
-    # ---- graph ------------------------------------------------------------
-    # Edges whose receiver is a wall/plate marker are useless (we never predict
-    # those nodes) and roughly double the edge count. Off by default.
+    # ---- граф -------------------------------------------------------------
+    # Рёбра, ведущие к маркерам стенки или штампа, бесполезны: эти узлы
+    # мы не предсказываем. Они примерно удваивают число рёбер и по умолчанию отключены.
     edges_to_static: bool = False
 
-    # ---- training crops ---------------------------------------------------
-    # A full frame is ~72k nodes / ~2-3M edges: does not fit a GPU during
-    # backprop. We train on random cubes of half-size `crop_half`. Nodes closer
-    # than `crop_halo` to the cube border see a truncated neighbourhood, so
-    # they are inputs only, not loss targets.
-    crop_half: float = 0.12         # 0 disables cropping (full frames)
+    # ---- области для обучения ---------------------------------------------
+    # Полный кадр содержит ~72 тыс. узлов и ~2–3 млн рёбер: при обратном
+    # распространении он не помещается в GPU. Обучаемся на случайных кубах
+    # с полустороной `crop_half`. У узлов ближе `crop_halo` к границе куба
+    # неполное окружение: используем их на входе, но не учитываем в функции потерь.
+    crop_half: float = 0.12         # 0 отключает выделение областей: используются полные кадры
     crop_halo: float = 0.08
-    crop_near_plate: float = 0.7    # probability a crop is centred under the plate
+    crop_near_plate: float = 0.7    # вероятность расположить центр области под штампом
 
-    # ---- input noise (the autoregressive-stability trick from GNS) -------
-    noise_pos: float = 3e-5         # [m]; plate moves 1e-4 m per frame, so ~0.3 of a step
-    noise_state: float = 0.3        # fraction of each state feature's per-frame change std
+    # ---- шум на входе: приём GNS для устойчивости последовательных прогнозов --
+    noise_pos: float = 3e-5         # м; штамп движется на 1e-4 м за кадр, поэтому это ~0.3 шага
+    noise_state: float = 0.3        # доля стандартного отклонения покадрового изменения каждого признака состояния
 
-    # ---- model ------------------------------------------------------------
+    # ---- модель -----------------------------------------------------------
     hidden: int = 128
     layers: int = 6
 
-    # ---- optimisation -----------------------------------------------------
-    batch: int = 4                  # crops per step
+    # ---- оптимизация ------------------------------------------------------
+    batch: int = 4                  # число областей на шаг обучения
     lr: float = 1e-4
-    lr_decay_steps: int = 50_000    # lr *= 0.1 every this many steps
+    lr_decay_steps: int = 50_000    # умножать lr на 0.1 через указанное число шагов
     steps: int = 20_000
-    stats_frames: int = 40          # frames sampled to estimate normalisation
+    stats_frames: int = 40          # число кадров для оценки параметров нормализации
     val_samples: int = 32
     log_every: int = 100
     val_every: int = 1000
@@ -48,7 +48,7 @@ class Config:
     seed: int = 0
     out_dir: str = "checkpoints/gns"
 
-    # ---- helpers ----------------------------------------------------------
+    # ---- вспомогательные методы -------------------------------------------
     @property
     def holdout_tags(self):
         return [t for t in self.holdout.split(",") if t]

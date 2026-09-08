@@ -1,4 +1,4 @@
-"""Measure exact KNN on complete local/server frames, independently of the network.
+"""Замер точного поиска K ближайших соседей на полных локальных или серверных кадрах без нейросети.
 
     python scripts/benchmark_particle_neighbors.py --tag phi35_c1000 --out checkpoints/neighbors.json
 """
@@ -20,7 +20,7 @@ from surrogate.particle.neighbors import nearest_neighbors  # noqa: E402
 
 
 def previous_query(pos, targets, count, tree):
-    """The previous serial per-target implementation, retained only as a reference."""
+    """Прежняя последовательная реализация с перебором целевых частиц, сохранённая только для сравнения."""
     pos = np.asarray(pos)
     targets = np.asarray(targets, np.int64)
     ids = np.zeros((len(targets), count), np.int64)
@@ -44,7 +44,7 @@ def previous_frame(pos, targets, count, tree, batch):
 
 
 def measure_query(function, expected, repeats):
-    # Warm each implementation before timing; comparisons are outside timing.
+    # Прогреваем каждую реализацию перед замером; сравнения результатов не входят в замер времени.
     actual = function()
     for reference, value in zip(expected, actual):
         np.testing.assert_array_equal(reference, value)
