@@ -12,11 +12,13 @@ class Config:
     history_frames: int = 8         # предыдущие кадры ПЛЮС текущий кадр
     prediction_horizon: int = 1     # сколько будущих кадров предсказывается одной сетью
     neighbors: int = 256
-    batch: int = 32                  # целевые частицы, каждая со своими историями соседей
+    batch: int = 32                  # порция GPU; в full_frames веса обновляются после ВСЕХ частиц кадра
+    training_mode: str = "full_frames"
+    epochs: int = 1                  # полные проходы по всем допустимым кадрам всех TRAIN-запусков
     hidden: int = 256
     lr: float = 1e-4
     lr_decay_steps: int = 50_000
-    steps: int = 20_000
+    steps: int = 20_000              # предел только для прежнего режима random_particles
     stats_frames: int = 40
     val_samples: int = 16            # фиксированные пакеты примеров для проверки прогноза на один шаг
     log_every: int = 100
@@ -26,7 +28,7 @@ class Config:
     input_noise_std: float = 0.0    # гауссов шум в единицах нормализованного входа
 
     def __post_init__(self):
-        for name in ("frame_stride", "neighbors", "batch", "hidden", "steps",
+        for name in ("frame_stride", "neighbors", "batch", "hidden", "steps", "epochs",
                      "lr_decay_steps", "stats_frames", "val_samples", "log_every", "val_every"):
             if getattr(self, name) < 1:
                 raise ValueError(f"{name} must be positive")
@@ -36,6 +38,8 @@ class Config:
             raise ValueError("history_frames must be nonnegative")
         if self.prediction_horizon < 1 or self.input_noise_std < 0:
             raise ValueError("prediction_horizon must be positive and input_noise_std nonnegative")
+        if self.training_mode not in ("full_frames", "random_particles"):
+            raise ValueError("training_mode must be full_frames or random_particles")
 
     @property
     def holdout_tags(self):

@@ -3,8 +3,8 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-ckpt="${2:-checkpoints/particle_history_k256_h8_w256_h5_noise/best.pt}"
-out_dir="${1:-checkpoints/particle-eval-h5-noise-$(date +%Y%m%d-%H%M%S)}"
+ckpt="${2:-checkpoints/particle_history_k256_h8_w256_h5_noise_fullframes/best.pt}"
+out_dir="${1:-checkpoints/particle-eval-fullframes-$(date +%Y%m%d-%H%M%S)}"
 steps="${3:-10}"
 if [[ ! -f "$ckpt" ]]; then
   echo "Trained checkpoint not found: $ckpt. Run this script on the training server." >&2

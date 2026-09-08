@@ -3,7 +3,8 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-out_dir="checkpoints/particle_history_k256_h8_w256_h5_noise"
+out_dir="checkpoints/particle_history_k256_h8_w256_h5_noise_fullframes"
+epochs="${1:-1}"
 
 mkdir -p checkpoints
 # Не допускаем повторный запуск в прежней папке, чтобы tee не перезаписал журнал обучения.
@@ -20,14 +21,15 @@ python -u -m surrogate.particle.train \
   --dt 0.02 \
   --batch 32 \
   --hidden 256 \
-  --steps 50000 \
+  --training_mode full_frames \
+  --epochs "$epochs" \
   --lr 1e-4 \
   --lr_decay_steps 50000 \
   --input_noise_std 0.05 \
   --stats_frames 40 \
   --val_samples 16 \
-  --log_every 100 \
-  --val_every 1000 \
+  --log_every 1 \
+  --val_every 25 \
   --seed 0 \
   --device cuda \
   2>&1 | tee "$out_dir/train.log"

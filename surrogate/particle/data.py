@@ -1,6 +1,7 @@
 """Целевая частица, её текущие соседи, их истории и изменение целевой частицы за следующий шаг."""
 import numpy as np
 import torch
+from scipy.spatial import cKDTree
 
 from ..data import N_TYPES, POS, SOIL, STATE, VEL
 from .neighbors import nearest_neighbors
@@ -66,12 +67,7 @@ def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None
 
 
 class ParticleDataset:
-    """Выбираем целевые частицы по всему кадру и используем этот кадр для всего пакета.
-
-    Общий момент времени внутри пакета нужен только для того, чтобы не загружать
-    массивы и не строить деревья повторно. У каждой целевой частицы свои K соседей;
-    пространственные области и дополнительные полосы вокруг их границ не выделяются.
-    """
+    """Полные кадры для обучения; sample — статистика, валидация и прежний случайный режим."""
     def __init__(self, runs, cfg, seed=0):
         self.runs, self.cfg = list(runs), cfg
         self.rng = np.random.default_rng(seed)
@@ -88,9 +84,13 @@ class ParticleDataset:
         if start < 0 or t + horizon * self.cfg.frame_stride >= run.n_frames:
             raise ValueError("target frame lacks the requested history or next frame")
         history = np.stack([run.frame(s) for s in range(start, t + 1, self.cfg.frame_stride)])
-        current = history[-1]
         sample = build_inputs(history, run.types, run.phi_deg, run.cohesion,
                               target_ids, self.cfg.neighbors)
+        sample["y"] = self.targets(run, t, target_ids, history[-1])
+        return sample
+
+    def targets(self, run, t, target_ids, current):
+        horizon = self.cfg.prediction_horizon
         # ID частиц сохраняются. Для каждого будущего кадра предсказывается
         # изменение относительно текущего состояния, а не абсолютные координаты
         # и напряжения. Получается один выходной вектор на каждый горизонт.
@@ -100,12 +100,28 @@ class ParticleDataset:
         ])
         targets = future - current[target_ids][None]
         if horizon == 1:
-            sample["y"] = targets[0]
-        else:
-            # Модель выдаёт (batch, horizon, features), поэтому переносим
-            # ось горизонта после оси выбранных частиц.
-            sample["y"] = targets.transpose(1, 0, 2)
-        return sample
+            return targets[0]
+        # Модель выдаёт (batch, horizon, features).
+        return targets.transpose(1, 0, 2)
+
+    def frame_batches(self, frame_index):
+        """Все грунтовые ID выбранного кадра ровно один раз, включая последнюю неполную порцию.
+
+        История, признаки всего кадра и дерево строятся один раз. Истории соседей
+        собираются порциями, чтобы не держать полный граф вычислений в памяти.
+        """
+        ri, t = self.index[frame_index]
+        run = self.runs[ri]
+        start = t - self.cfg.history_frames * self.cfg.frame_stride
+        history = np.stack([run.frame(s) for s in range(start, t + 1, self.cfg.frame_stride)])
+        features = np.stack([input_features(f, run.types, run.phi_deg, run.cohesion) for f in history])
+        tree = cKDTree(history[-1, :, POS])
+        for first in range(0, run.n_soil, self.cfg.batch):
+            ids = np.arange(first, min(first + self.cfg.batch, run.n_soil), dtype=np.int64)
+            sample = build_inputs(history, run.types, run.phi_deg, run.cohesion,
+                                  ids, self.cfg.neighbors, tree=tree, features=features)
+            sample["y"] = self.targets(run, t, ids, history[-1])
+            yield ids, sample
 
     def sample(self):
         ri, t = self.index[self.rng.integers(len(self.index))]

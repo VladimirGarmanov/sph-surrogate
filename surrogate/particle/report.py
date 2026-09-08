@@ -121,16 +121,19 @@ def build_report(directory):
         records = [json.loads(line) for line in metrics.read_text().splitlines() if line.strip()]
         val = [r for r in records if r.get("split") == "VAL"]
         train = [r for r in records if r.get("split") == "TRAIN"]
-        lines += ["", "## Обучение", "",
-                  "TRAIN — среднее по очередному интервалу случайных пакетов с шумом; VAL — фиксированные пакеты без шума.",
-                  "VAL при horizon=5 усредняет пять горизонтов. Она не равна ошибке авторегрессивной траектории."]
+        full_frames = bool(train) and train[0].get("training_mode") == "full_frames"
+        description = ("TRAIN — среднее по всем частицам одного кадра; один шаг — обновление после полного кадра."
+                       if full_frames else "TRAIN — среднее по очередному интервалу случайных пакетов.")
+        lines += ["", "## Обучение", "", description,
+                  "VAL — фиксированные пакеты без входного шума; наличие шума в TRAIN задано в training/config.json.",
+                  "VAL усредняет выходные горизонты модели. Она не равна ошибке авторегрессивной траектории."]
         if val:
             best = min(val, key=lambda r: r["mse"])
             lines += ["", f"Лучшая записанная VAL: {best['mse']:.6g}, шаг {best['step']}.",
                       "", "| Шаг | VAL MSE | Неизменная частица |", "|---:|---:|---:|"]
             lines += [f"| {r['step']} | {r['mse']:.6g} | {r['zero_delta_mse']:.6g} |" for r in val]
         if train:
-            lines += ["", "Крупнейшие TRAIN-пики (средние по интервалам):", "",
+            lines += ["", "Крупнейшие TRAIN-пики" + (" (полные кадры):" if full_frames else " (интервалы):"), "",
                       "| Шаг | TRAIN MSE |", "|---:|---:|"]
             lines += [f"| {r['step']} | {r['mse']:.6g} |"
                       for r in sorted(train, key=lambda r: r["mse"], reverse=True)[:10]]
