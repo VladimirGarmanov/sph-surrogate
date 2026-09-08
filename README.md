@@ -155,6 +155,20 @@ bash scripts/evaluate_particle_w256.sh
 на всех частицах и сохраняет сравнение 16 величин вместе с профилем времени.
 [Инструкция и связь с поиском Project Chrono](docs/PARTICLE_MODEL_EVALUATION_RU.md).
 
+Обновлённый evaluate_particle_w256.sh по умолчанию проверяет
+checkpoints/particle_history_k256_h8_w256_h5_noise/best.pt:
+10 шагов rollout и затем 10 шагов teacher forcing на phi30_c500.
+Он создаёт новую папку с датой в имени, REPORT_RU.md, REPORT.json, графики,
+прогнозы частиц и копии доступных журналов обучения. Рядом сохраняется
+архив .tar.gz для скачивания на MacBook.
+Позиционные аргументы — папка результатов, путь checkpoint, число шагов.
+Для старых весов путь теперь нужно указать явно:
+
+~~~bash
+bash scripts/evaluate_particle_w256.sh checkpoints/particle-eval-old-check \
+  checkpoints/particle_history_k256_h8_w256/best.pt 10
+~~~
+
 Чтобы проверить именно одношаговую точность без накопления собственных ошибок,
 добавь к той же команде rollout флаг `--teacher_forced`:
 

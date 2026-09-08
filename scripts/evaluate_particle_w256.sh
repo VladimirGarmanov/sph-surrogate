@@ -3,8 +3,9 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-ckpt="checkpoints/particle_history_k256_h8_w256/best.pt"
-out_dir="${1:-checkpoints/particle-eval-w256}"
+ckpt="${2:-checkpoints/particle_history_k256_h8_w256_h5_noise/best.pt}"
+out_dir="${1:-checkpoints/particle-eval-h5-noise-$(date +%Y%m%d-%H%M%S)}"
+steps="${3:-10}"
 if [[ ! -f "$ckpt" ]]; then
   echo "Trained checkpoint not found: $ckpt. Run this script on the training server." >&2
   exit 1
@@ -16,20 +17,37 @@ fi
 # Отклоняем существующую папку результатов до открытия журналов.
 mkdir -p "$(dirname "$out_dir")"
 mkdir "$out_dir"
+experiment_dir="$(dirname "$ckpt")"
+mkdir "$out_dir/training"
+for name in config.json metrics.jsonl train.log stats.npz; do
+  if [[ -f "$experiment_dir/$name" ]]; then
+    cp "$experiment_dir/$name" "$out_dir/training/$name"
+  fi
+done
+printf '%s\n' "$ckpt" > "$out_dir/checkpoint_path.txt"
 
 python -u scripts/benchmark_particle_neighbors.py \
   --data_dir data --tag phi30_c500 --frames 8 --neighbors 256 \
   --workers 1 4 --repeats 3 --out "$out_dir/neighbors.json" \
   2>&1 | tee "$out_dir/neighbors.log"
 
-python -u -m surrogate.particle.rollout \
-  --ckpt "$ckpt" --data_dir data --tag phi30_c500 \
-  --start_frame 8 --steps 10 --batch 32 --neighbor_workers 4 --device cuda \
-  --save_particles --profile --plot \
-  --out "$out_dir/rollout.npz" \
-  2>&1 | tee "$out_dir/rollout.log"
+for mode in rollout teacher_forced; do
+  extra=()
+  if [[ "$mode" == teacher_forced ]]; then
+    extra+=(--teacher_forced)
+  fi
+  python -u -m surrogate.particle.rollout \
+    --ckpt "$ckpt" --data_dir data --tag phi30_c500 \
+    --start_frame 8 --steps "$steps" --batch 32 --neighbor_workers 4 --device cuda \
+    --save_particles --profile --plot "${extra[@]}" \
+    --out "$out_dir/$mode.npz" \
+    2>&1 | tee "$out_dir/$mode.log"
 
-python -u -m surrogate.particle.compare --result "$out_dir/rollout.npz" \
-  2>&1 | tee "$out_dir/comparison.log"
+  python -u -m surrogate.particle.compare --result "$out_dir/$mode.npz" \
+    2>&1 | tee "$out_dir/${mode}_comparison.log"
+done
 
-echo "Read $out_dir/comparison.log for model errors and $out_dir/rollout.log for timings."
+python -u -m surrogate.particle.report --directory "$out_dir"
+tar -czf "$out_dir.tar.gz" -C "$(dirname "$out_dir")" "$(basename "$out_dir")"
+echo "Report: $out_dir/REPORT_RU.md"
+echo "Download to MacBook: $out_dir.tar.gz"
