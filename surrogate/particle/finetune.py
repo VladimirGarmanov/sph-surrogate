@@ -16,7 +16,7 @@ import torch
 
 from ..data import discover_runs
 from ..model import pick_device
-from .config import Config
+from .config import Config, migrate_saved_config
 from .data import ParticleDataset, Stats, to_tensors
 from .model import ParticleNet, predict
 from .replay import RolloutReplay, rollout_windows
@@ -113,7 +113,7 @@ def run_finetuning(checkpoint, options, *, resume=False, source_path=""):
         reserved = ("model.pt", "best.pt", "finetune.json", "metrics.jsonl", "validation_before.npz")
         if any((out / name).exists() for name in reserved):
             raise ValueError("out_dir already contains an experiment; choose a new directory or --resume")
-    cfg = Config.from_dict({**checkpoint["config"], "data_dir": options.data_dir,
+    cfg = Config.from_dict({**migrate_saved_config(checkpoint["config"]), "data_dir": options.data_dir,
                             "out_dir": str(out), "batch": options.batch,
                             "lr": options.lr, "device": options.device})
     stats = Stats(checkpoint["stats"])

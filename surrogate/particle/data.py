@@ -30,15 +30,22 @@ def input_features(frame, types, phi_deg, cohesion):
 
 
 def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None, features=None,
-                 timer=None, neighbor_selection=None):
+                 timer=None, neighbor_selection=None, neighbor_history=None):
     """Выбираем соседей в момент t и отслеживаем ТЕ ЖЕ ID в кадрах t-8..t.
 
     history имеет форму (H, N, 16), от старых кадров к новым. Раньше сосед
     мог быть далеко: собираем его собственную траекторию, сохраняя ID,
     а не подменяем его другой частицей, которая тогда была ближе.
+
+    ``neighbor_history`` укорачивает историю ТОЛЬКО соседей и рёбер, до
+    последних кадров. Центральная частица всегда получает историю целиком:
+    на каждую целевую частицу приходится одна центральная история и K историй соседей.
     """
     if history.ndim != 3 or history.shape[-1] != 16 or not len(history):
         raise ValueError("history must have shape (H, N, 16), oldest to current")
+    span = len(history) if neighbor_history is None else neighbor_history
+    if not 1 <= span <= len(history):
+        raise ValueError("neighbor_history must be between 1 and the number of history frames")
     frame = history[-1]
     target_ids = np.asarray(target_ids, np.int64)
     if np.any(types[target_ids] != SOIL):
@@ -54,12 +61,14 @@ def build_inputs(history, types, phi_deg, cohesion, target_ids, count, tree=None
     with measure(timer, "gather"):
         if features is None:
             features = np.stack([input_features(f, types, phi_deg, cohesion) for f in history])
+        # Соседи и рёбра берут только последние span кадров; отбор ID остаётся по history[-1].
+        near, near_features = history[-span:], features[-span:]
         # Собираем ТЕ ЖЕ ID по времени, затем переносим H на ось последовательности.
-        rel = (history[:, ids, POS] - history[:, target_ids, POS][:, :, None, :]).transpose(1, 2, 0, 3)
+        rel = (near[:, ids, POS] - near[:, target_ids, POS][:, :, None, :]).transpose(1, 2, 0, 3)
         distance = np.linalg.norm(rel, axis=-1, keepdims=True)
-        relv = (history[:, ids, VEL] - history[:, target_ids, VEL][:, :, None, :]).transpose(1, 2, 0, 3)
+        relv = (near[:, ids, VEL] - near[:, target_ids, VEL][:, :, None, :]).transpose(1, 2, 0, 3)
         edge = np.concatenate([rel, distance, relv], axis=-1)
-        neighbors = features[:, ids].transpose(1, 2, 0, 3).copy()
+        neighbors = near_features[:, ids].transpose(1, 2, 0, 3).copy()
         neighbors[~valid] = 0
         edge[~valid] = 0
         return {"x": features[:, target_ids].transpose(1, 0, 2),
@@ -85,7 +94,8 @@ class ParticleDataset:
             raise ValueError("target frame lacks the requested history or next frame")
         history = np.stack([run.frame(s) for s in range(start, t + 1, self.cfg.frame_stride)])
         sample = build_inputs(history, run.types, run.phi_deg, run.cohesion,
-                              target_ids, self.cfg.neighbors)
+                              target_ids, self.cfg.neighbors,
+                              neighbor_history=self.cfg.neighbor_history)
         sample["y"] = self.targets(run, t, target_ids, history[-1])
         return sample
 
@@ -116,10 +126,12 @@ class ParticleDataset:
         history = np.stack([run.frame(s) for s in range(start, t + 1, self.cfg.frame_stride)])
         features = np.stack([input_features(f, run.types, run.phi_deg, run.cohesion) for f in history])
         tree = cKDTree(history[-1, :, POS])
-        for first in range(0, run.n_soil, self.cfg.batch):
-            ids = np.arange(first, min(first + self.cfg.batch, run.n_soil), dtype=np.int64)
+        portion = self.cfg.gpu_batch or self.cfg.batch
+        for first in range(0, run.n_soil, portion):
+            ids = np.arange(first, min(first + portion, run.n_soil), dtype=np.int64)
             sample = build_inputs(history, run.types, run.phi_deg, run.cohesion,
-                                  ids, self.cfg.neighbors, tree=tree, features=features)
+                                  ids, self.cfg.neighbors, tree=tree, features=features,
+                                  neighbor_history=self.cfg.neighbor_history)
             sample["y"] = self.targets(run, t, ids, history[-1])
             yield ids, sample
 

@@ -2,6 +2,16 @@
 from dataclasses import asdict, dataclass, fields
 
 
+def migrate_saved_config(values):
+    """Восстановить исторические настройки v2, не меняя явно сохранённые значения.
+
+    Применяется только к checkpoint/config.json существующего эксперимента.
+    Новое обучение использует текущие умолчания Config.
+    """
+    return {"neighbors": 256, "neighbor_history_frames": 0,
+            "training_mode": "random_particles", **values}
+
+
 @dataclass
 class Config:
     data_dir: str = "data"
@@ -10,9 +20,11 @@ class Config:
     dt: float = 0.02
     frame_stride: int = 1
     history_frames: int = 8         # предыдущие кадры ПЛЮС текущий кадр
+    neighbor_history_frames: int = 0  # последние кадры, видимые соседу; 0 = вся история
     prediction_horizon: int = 1     # сколько будущих кадров предсказывается одной сетью
-    neighbors: int = 256
+    neighbors: int = 32             # эксперимент с меньшим K; качество проверяется на rollout
     batch: int = 32                  # порция GPU; в full_frames веса обновляются после ВСЕХ частиц кадра
+    gpu_batch: int = 0               # переопределение порции full_frames; 0 = batch, не меняет VAL/статистику
     training_mode: str = "full_frames"
     epochs: int = 1                  # полные проходы по всем допустимым кадрам всех TRAIN-запусков
     hidden: int = 256
@@ -36,10 +48,19 @@ class Config:
             raise ValueError("dt and lr must be positive")
         if self.history_frames < 0:
             raise ValueError("history_frames must be nonnegative")
+        if not 0 <= self.neighbor_history_frames <= self.history_frames + 1:
+            raise ValueError("neighbor_history_frames must be 0 (all frames) or at most history_frames + 1")
         if self.prediction_horizon < 1 or self.input_noise_std < 0:
             raise ValueError("prediction_horizon must be positive and input_noise_std nonnegative")
         if self.training_mode not in ("full_frames", "random_particles"):
             raise ValueError("training_mode must be full_frames or random_particles")
+        if self.gpu_batch < 0:
+            raise ValueError("gpu_batch must be nonnegative")
+
+    @property
+    def neighbor_history(self):
+        """Длина истории соседа в кадрах. Прежние checkpoint без поля дают всю историю."""
+        return self.neighbor_history_frames or self.history_frames + 1
 
     @property
     def holdout_tags(self):

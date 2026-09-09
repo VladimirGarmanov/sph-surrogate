@@ -79,7 +79,8 @@ class RolloutReplay:
             self.trees[index] = cKDTree(history[-1, :, :3])
         sample = build_inputs(history, self.types, self.run.phi_deg, self.run.cohesion,
                               ids, self.cfg.neighbors, tree=self.trees[index],
-                              features=self.features[index:stop])
+                              features=self.features[index:stop],
+                              neighbor_history=self.cfg.neighbor_history)
         # Цель восстановления: будущее ИСТИННОЕ состояние минус ТЕКУЩЕЕ ПРЕДСКАЗАННОЕ
         # состояние. Вычитание текущего истинного состояния учило бы неправильному изменению.
         sample["y"] = self.reference[index, self.soil_rows[ids]] - history[-1, ids]

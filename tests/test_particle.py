@@ -358,5 +358,47 @@ class ParticleTests(unittest.TestCase):
                 load_comparison(summary_only)
 
 
+class NeighborHistoryTests(unittest.TestCase):
+    """Соседу можно укоротить историю, не трогая ни центр, ни отбор соседей."""
+    def inputs(self, **kwargs):
+        rng = np.random.default_rng(3)
+        history = rng.normal(size=(9, 40, 16)).astype(np.float32)
+        types = np.full(40, SOIL)
+        types[35:] = WALL
+        return build_inputs(history, types, 30., 500., np.arange(4), 6, **kwargs)
+
+    def test_short_history_keeps_the_most_recent_neighbour_frames(self):
+        full, cut = self.inputs(), self.inputs(neighbor_history=3)
+        self.assertEqual(cut["neighbors"].shape[2], 3)
+        self.assertEqual(cut["e"].shape[2], 3)
+        # Хвост, а не начало: сосед должен видеть последние кадры, включая текущий.
+        np.testing.assert_array_equal(full["neighbors"][:, :, -3:], cut["neighbors"])
+        np.testing.assert_array_equal(full["e"][:, :, -3:], cut["e"])
+
+    def test_centre_history_and_neighbour_selection_are_untouched(self):
+        full, cut = self.inputs(), self.inputs(neighbor_history=1)
+        np.testing.assert_array_equal(full["x"], cut["x"])
+        np.testing.assert_array_equal(full["valid"], cut["valid"])
+
+    def test_network_accepts_asymmetric_history_lengths(self):
+        sample = self.inputs(neighbor_history=3)
+        model = ParticleNet(16)
+        output = predict(model, to_tensors(sample, unit_stats()))
+        self.assertEqual(output.shape, (4, 16))
+
+    def test_rejects_history_longer_than_available(self):
+        with self.assertRaisesRegex(ValueError, "neighbor_history"):
+            self.inputs(neighbor_history=10)
+        with self.assertRaisesRegex(ValueError, "neighbor_history"):
+            self.inputs(neighbor_history=0)
+
+    def test_absent_setting_means_the_full_history(self):
+        # Checkpoint без поля обучался на полной истории соседа и должен её сохранить.
+        self.assertEqual(Config(history_frames=8, neighbor_history_frames=0).neighbor_history, 9)
+        self.assertEqual(Config(history_frames=8, neighbor_history_frames=3).neighbor_history, 3)
+        with self.assertRaisesRegex(ValueError, "neighbor_history_frames"):
+            Config(history_frames=8, neighbor_history_frames=10)
+
+
 if __name__ == "__main__":
     unittest.main()

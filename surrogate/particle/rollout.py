@@ -54,6 +54,7 @@ def predict_next_frame(model, stats, history, types, phi_deg, cohesion, cfg, dev
         ids = targets[start:start + batch_size]
         inputs = build_inputs(history, types, phi_deg, cohesion, ids, cfg.neighbors,
                               features=features, timer=timer,
+                              neighbor_history=cfg.neighbor_history,
                               neighbor_selection=(neighbor_ids[start:start + batch_size],
                                                   neighbor_valid[start:start + batch_size]))
         with measure(timer, "normalize"):
@@ -212,6 +213,7 @@ def main():
     if args.neighbor_workers == 0 or args.neighbor_workers < -1:
         parser.error("--neighbor_workers must be -1 or positive")
     print(f"{run} device={device} K={cfg.neighbors} history={cfg.history_frames}+current "
+          f"neighbor_history={cfg.neighbor_history} "
           f"dt={cfg.dt * cfg.frame_stride:g}s", flush=True)
     print(f"checkpoint step={checkpoint['step']}; hidden={cfg.hidden}; "
           f"{sum(p.numel() for p in model.parameters()):,} parameters; {run.n_soil:,} soil particles; "
@@ -227,6 +229,7 @@ def main():
                   hidden=np.asarray(cfg.hidden),
                   batch_size=np.asarray(batch_size), neighbors=np.asarray(cfg.neighbors),
                   history_frames=np.asarray(cfg.history_frames), dt=np.asarray(cfg.dt * cfg.frame_stride),
+                  neighbor_history_frames=np.asarray(cfg.neighbor_history_frames),
                   neighbor_workers=np.asarray(args.neighbor_workers))
     over = np.flatnonzero(result["rmse"][1:] > .01)
     stable = int(over[0]) if len(over) else len(result["frames"]) - 1

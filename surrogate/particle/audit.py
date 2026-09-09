@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from ..data import parse_tag
-from .config import Config
+from .config import Config, migrate_saved_config
 from .data import FEATURE_NAMES, FEATURE_UNITS
 
 THRESHOLDS = (10, 100, 1000)
@@ -493,7 +493,7 @@ def main():
     cfg, scales = Config(), None
     if args.experiment:
         experiment = Path(args.experiment)
-        cfg = Config.from_dict(json.loads((experiment / "config.json").read_text()))
+        cfg = Config.from_dict(migrate_saved_config(json.loads((experiment / "config.json").read_text())))
         with np.load(experiment / "stats.npz", allow_pickle=False) as stored:
             scales = stored["target_std"]
     audit(args.data_dir, args.out_dir, cfg, scales, args.top, args.experiment)

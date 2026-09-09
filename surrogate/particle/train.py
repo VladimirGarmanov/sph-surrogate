@@ -13,7 +13,7 @@ import torch
 
 from ..data import discover_runs
 from ..model import pick_device
-from .config import Config
+from .config import Config, migrate_saved_config
 from .data import FEATURE_NAMES, ParticleDataset, Stats, add_input_noise, to_tensors
 from .model import ParticleNet, predict
 
@@ -24,6 +24,7 @@ def load_checkpoint(path):
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     if checkpoint.get("kind") != CHECKPOINT_KIND:
         raise ValueError("expected a particle-history-delta-v2 checkpoint; older architectures are incompatible")
+    checkpoint["config"] = migrate_saved_config(checkpoint["config"])
     return checkpoint
 
 
@@ -110,18 +111,16 @@ def main():
         raise ValueError("resume rollout-replay training with surrogate.particle.finetune --resume")
     settings = dict(checkpoint["config"]) if checkpoint else {}
     if resume:
-        # Старый checkpoint не должен молча сменить способ обучения.
-        settings.setdefault("training_mode", "random_particles")
         settings["out_dir"] = str(Path(resume).parent)
     settings.update(args)
     cfg = Config.from_dict(settings)
     if checkpoint:
+        saved_cfg = Config.from_dict(checkpoint["config"])
         for key in ("neighbors", "hidden", "dt", "frame_stride", "history_frames", "holdout", "batch",
                     "seed", "lr", "lr_decay_steps", "val_samples", "stats_frames",
-                    "prediction_horizon", "input_noise_std", "training_mode"):
-            default = "random_particles" if key == "training_mode" else Config().to_dict()[key]
-            old_value = checkpoint["config"].get(key, default)
-            if cfg.to_dict()[key] != old_value:
+                    "prediction_horizon", "input_noise_std", "training_mode",
+                    "neighbor_history_frames"):
+            if getattr(cfg, key) != getattr(saved_cfg, key):
                 raise ValueError(f"cannot change {key} on resume; start a new experiment instead")
     if cfg.training_mode == "full_frames" and "steps" in args:
         parser.error("full_frames uses --epochs, not --steps; one update processes a complete frame")
@@ -187,13 +186,14 @@ def main():
 
     print(f"{sum(p.numel() for p in model.parameters()):,} parameters; "
           f"batch={cfg.batch} targets, K={cfg.neighbors}, history={cfg.history_frames}+current, "
+          f"neighbor_history={cfg.neighbor_history}, "
           f"horizon={cfg.prediction_horizon}, input_noise_std={cfg.input_noise_std:g}, "
           f"dt={cfg.dt * cfg.frame_stride:g}s", flush=True)
     if full_frames:
         targets_per_epoch = sum(dataset.runs[ri].n_soil for ri, _ in dataset.index)
         print(f"FULL FRAMES: {len(dataset.index):,} frames/epoch; "
               f"{targets_per_epoch:,} particle-frame targets/epoch; {cfg.epochs} epoch(s). "
-              f"One optimizer update per complete frame; GPU portion={cfg.batch}. "
+              f"One optimizer update per complete frame; GPU portion={cfg.gpu_batch or cfg.batch}. "
               f"Resume at update {step}/{total_steps}.", flush=True)
         print("Normalization uses sampled training statistics; VAL uses fixed sampled batches. "
               "Every TRAIN frame includes all soil particles.", flush=True)
